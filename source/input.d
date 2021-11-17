@@ -6,10 +6,23 @@ KeyboardKey[] getPressedKeys() {
     import raylib: GetKeyPressed;
     auto keys = new KeyboardKey[0];
 
-    KeyboardKey key = cast(KeyboardKey)GetKeyPressed();
+    auto key = cast(KeyboardKey)GetKeyPressed();
     while(key) {
         keys ~= key;
         key = cast(KeyboardKey)GetKeyPressed();
+    }
+
+    return keys;
+}
+
+char[] getChars() {
+    import raylib: GetCharPressed;
+    auto keys = new char[0];
+
+    auto ch = cast(char)GetCharPressed();
+    while(ch) {
+        keys ~= ch;
+        ch = cast(char)GetCharPressed();
     }
 
     return keys;

@@ -12,6 +12,7 @@ import keyboard;
 import models.editor;
 import models.document;
 import models.cursor;
+import settings;
 
 class TextEditorState {
     Editor editor;
@@ -22,87 +23,10 @@ class TextEditorState {
     bool shouldQuit;
 }
 
-float textHeight(Font f, int fontSize) {
-    return f.baseSize * fontSize/cast(float)f.baseSize;
-}
-
-void drawEditor(TextEditorState state, Editor editor) {
-    import std.encoding;
-    import std.conv;
-    import std.ascii;
-    import raylib : DrawTextCodepoint, GetFontDefault;
-
-    Font font = state.font;
-    auto fontSize = state.fontSize;
-    auto document = editor.document;
-
-    float textHeight = textHeight(font, fontSize);
-    float scaleFactor = cast(float)fontSize / font.baseSize;
-
-    int defaultFontSize = 10;   // Default Font chars height in pixel
-    if (fontSize < defaultFontSize) fontSize = defaultFontSize;
-    int spacing = fontSize / defaultFontSize;
-
-    float y = 0;
-
-    foreach(row, line; editor.visibleLines) {
-        auto tint = Colors.GREEN;
-        float textOffsetX = 0.0f;
-        auto isCursorRow = row == editor.cursor.row;
-
-        foreach(i, codepoint; line.codePoints) {
-            auto column = i + editor.viewport.left;
-            auto advance = getGlyphAdvance(font, codepoint) * scaleFactor + spacing;
-            auto isCursorCell = isCursorRow && column == editor.cursor.column;
-            auto pos = Vector2(textOffsetX, y);
-            if(!isWhite(codepoint)) {
-                DrawTextCodepoint(font, codepoint, pos, fontSize, tint);
-            }
-
-            if(isCursorCell) {
-                auto glyphRect = Rectangle(pos.x, pos.y, advance, textHeight);
-                drawCursor(editor.cursor, font, fontSize, codepoint, glyphRect, tint);
-            }
-            textOffsetX += advance;
-        }
-
-        // (editor.cursor.column >= line.length)
-        if(isCursorRow && editor.cursor.isAtEndOfLine) {
-            auto advance = getGlyphAdvance(font, ' ') * scaleFactor + spacing;
-            auto rect = Rectangle(textOffsetX, y, advance, textHeight);
-            drawCursor(editor.cursor, font, fontSize, ' ', rect, tint);
-        }
-        y += textHeight;
-    }
-}
-
-void drawCursor(Cursor cursor, Font font, int fontSize, dchar codepoint, Rectangle glyphRect, Color color) {
-    import raylib : DrawTextCodepoint;
-    final switch(cursor.mode) {
-        case CursorMode.NORMAL:
-            drawRectangle(glyphRect, color);
-            DrawTextCodepoint(font, codepoint, glyphRect.pos, fontSize, invertColor(color));
-            break;
-        case CursorMode.INSERT:
-            drawRectangle(Vector2(glyphRect.x, glyphRect.y), Vector2(1, glyphRect.height), color);
-            break;
-    }
-}
-
-float getGlyphAdvance(Font font, dchar codepoint) {
-    import raylib: GetGlyphIndex;
-    int index = GetGlyphIndex(font, codepoint);
-    if (font.chars[index].advanceX == 0) {
-        return cast(float)font.recs[index].width;
-    }
-    return cast(float)font.chars[index].advanceX;
-}
-
-
 void draw(TextEditorState state) {
     clearBackground(16, 16, 16);
     if(state.editor) {
-        drawEditor(state, state.editor);
+        state.editor.draw();
     }
 }
 
@@ -271,6 +195,7 @@ KeyMapContainer registerKeyCommands(TextEditorState state) {
                 ch = ch.toLower();
             }
             state.editor.insertCharacter(ch);
+            state.editor.scrollToContain(state.editor.cursor);
         });
     });
 
@@ -335,10 +260,11 @@ void main(string[] args) {
     const int HEIGHT = 1200;
     initWindow(WIDTH, HEIGHT, ";_;");
 
+    Settings.font = loadFont();
+
     auto state = new TextEditorState();
     auto documentPath = resourcePath("sample.json");
     state.editor = Editor.fromFilepath(documentPath);
-    state.font = loadFont();
     state.keyboard = new Keyboard();
     state.keyContainer = registerKeyCommands(state);
 

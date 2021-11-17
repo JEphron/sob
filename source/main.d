@@ -294,7 +294,7 @@ void handleInput(TextEditorState state) {
             match.run(state);
     }
 
-    int keyRepeatDelayMs = 100;
+    int keyRepeatDelayMs = 120;
     int keyRepeatRateMs = 17;
 
     if(auto lastKey = state.keyboard.mostRecentlyPressedKey) {

@@ -1,0 +1,20 @@
+{
+	"authors": [
+		"jephron"
+	],
+	"buildTypes": {
+		"debug": {
+			"buildOptions": [],
+			"systemDependencies": "sdl2"
+		}
+	},
+	"copyright": "Copyright © 2021, jephron",
+	"dependencies": {
+		"bindbc-sdl": "~>1.0.1",
+		"raylib-d": "~>3.1.0"
+	},
+    "libs": ["raylib"],
+	"description": "My angry text editor",
+	"license": "proprietary",
+	"name": "mofo"
+}

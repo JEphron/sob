@@ -21,7 +21,9 @@ class Cursor {
     }
 
     int column() {
-        return clamp(_column, 0, document.lineLength(row) - 1);
+        auto lineLen = document.lineLength(row);
+        if (lineLen == 0) return 0;
+        return clamp(_column, 0, lineLen - 1);
     }
 
     int _row = 5;

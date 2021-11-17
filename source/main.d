@@ -257,6 +257,8 @@ KeyMapContainer registerKeyCommands(TextEditorState state) {
             import std.ascii;
             import std.conv;
 
+            if(!event.key.isPrintable) return;
+
             auto ch = event.key.to!dchar;
             if(!event.hasModifier(KeyboardKey.KEY_LEFT_SHIFT)) {
                 ch = ch.toLower();

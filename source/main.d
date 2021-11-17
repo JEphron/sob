@@ -313,16 +313,17 @@ void handleInput(TextEditorState state) {
 Font loadFont() {
     import raylib : LoadFontEx;
     import std.string;
-    auto fontPath = "/home/jephron/dev/personal/motherfuckingtexteditor/res/FiraMono-Regular.otf";
+    import std.path;
+    auto fontPath = buildNormalizedPath(dirName(__FILE_FULL_PATH__) ~ "/../res/FiraMono-Regular.otf");
     return LoadFontEx(fontPath.toStringz, 32, null, 250);
 }
 
 void main(string[] args) {
     import raylib: SetExitKey;
-    initWindow(1200, 1200, "MOTHER FUCKER");
+    initWindow(1200, 1200, ";_;");
 
     auto state = new TextEditorState();
-    auto documentPath = "/home/jephron/dev/personal/motherfuckingtexteditor/source/main.d";
+    auto documentPath = __FILE_FULL_PATH__;
     state.editor = Editor.fromFilepath(documentPath);
     state.font = loadFont();
     state.keyboard = new Keyboard();

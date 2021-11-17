@@ -87,7 +87,6 @@ class Document {
         import std.array;
         import std.conv;
 
-        writeln("inserting ", ch.to!int);
         if(row < 0 || column < 0) return;
         auto arr = lines[row].array;
         arr.insertInPlace(column, ch);

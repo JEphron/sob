@@ -45,23 +45,30 @@ void drawEditor(TextEditorState state, Editor editor) {
 
     float y = 0;
     auto viewport = Viewport(0, document.lineCount, 0, 100);
+
     foreach(row, line; document.getViewport(viewport)) {
+        auto tint = Colors.GREEN;
         float textOffsetX = 0.0f;
+        auto isCursorRow = row == editor.cursor.row;
 
         foreach(i, codepoint; line.codePoints) {
-            auto tint = Colors.GREEN;
             auto advance = getGlyphAdvance(font, codepoint) * scaleFactor + spacing;
-            auto isCursor = row == editor.cursor.row && i == editor.cursor.column;
+            auto isCursorCell = isCursorRow && i == editor.cursor.column;
             auto pos = Vector2(textOffsetX, y);
-            if (!isWhite(codepoint)) {
+            if(!isWhite(codepoint)) {
                 DrawTextCodepoint(font, codepoint, pos, fontSize, tint);
             }
 
-            if(isCursor) {
+            if(isCursorCell) {
                 auto glyphRect = Rectangle(pos.x, pos.y, advance, textHeight);
                 drawCursor(editor.cursor, font, fontSize, codepoint, glyphRect, tint);
             }
             textOffsetX += advance;
+        }
+
+        if(isCursorRow && editor.cursor.column >= line.length) {
+            auto advance = getGlyphAdvance(font, ' ') * scaleFactor + spacing;
+            drawCursor(editor.cursor, font, fontSize, ' ', Rectangle(textOffsetX, y, advance, textHeight), tint);
         }
         y += textHeight;
     }
@@ -118,8 +125,10 @@ class MoveCursorKeyCommand : KeyCommand {
     override void run(TextEditorState state) {
         if(!state.editor)
             return;
-        state.editor.cursor.moveVertically(dy);
-        state.editor.cursor.moveHorizontally(dx);
+        if(dy)
+            state.editor.cursor.moveVertically(dy);
+        if(dx)
+            state.editor.cursor.moveHorizontally(dx);
     }
 }
 
@@ -137,27 +146,70 @@ class EnterModeCommand : KeyCommand {
     }
 }
 
+class BackspaceCommand : KeyCommand {
+    override void run(TextEditorState state) {
+        if(!state.editor)
+            return;
+        auto needsMoveBack = !state.editor.cursor.isAtEndOfLine;
+        state.editor.deleteBeforeCursor();
+        if(needsMoveBack) {
+            new MoveCursorKeyCommand(-1, 0).run(state);
+        }
+
+    }
+}
+
+class ChainedCommand : KeyCommand {
+    KeyCommand[] commands;
+
+    this(KeyCommand[] commands) {
+        this.commands = commands;
+    }
+
+    override void run(TextEditorState state) {
+        foreach(command; commands) {
+            command.run(state);
+        }
+    }
+}
+
 struct KeyBind {
     KeyboardKey key;
     KeyboardKey mod1;
     KeyboardKey mod2;
 }
 
+struct KeyEvent {
+    KeyboardKey key;
+    KeyboardKey[] modifiers;
+
+    bool hasModifier(KeyboardKey mod) {
+        import std.algorithm;
+        return modifiers.canFind(mod);
+    }
+}
+
 class KeyMap {
     private KeyCommand delegate()[KeyBind] keybinds;
+    private void delegate(KeyEvent) defaultAction;
 
     void add(KeyBind bind, lazy KeyCommand command) {
         keybinds[bind] = () => command();
     }
 
-    KeyCommand match(KeyboardKey key, KeyboardKey[] modifiers) {
+    void setDefault(void delegate(KeyEvent) fn) {
+        defaultAction = fn;
+    }
+
+    KeyCommand match(KeyEvent event) {
         import std.algorithm.searching: canFind;
         foreach(bind, fn; keybinds) {
-            if(bind.key != key) continue;
-            if(bind.mod1 && !modifiers.canFind(bind.mod1)) continue;
-            if(bind.mod2 && !modifiers.canFind(bind.mod2)) continue;
+            if(bind.key != event.key) continue;
+            if(bind.mod1 && !event.modifiers.canFind(bind.mod1)) continue;
+            if(bind.mod2 && !event.modifiers.canFind(bind.mod2)) continue;
             return fn();
         }
+        if(defaultAction) defaultAction(event);
         return null;
     }
 }
@@ -187,7 +239,7 @@ class KeyMapContainer {
     }
 }
 
-KeyMapContainer registerKeyCommands() {
+KeyMapContainer registerKeyCommands(TextEditorState state) {
     auto container = new KeyMapContainer();
 
     container.global((map) {
@@ -195,15 +247,37 @@ KeyMapContainer registerKeyCommands() {
     });
 
     container.modeMap(CursorMode.INSERT, (map) {
-        map.add(KeyBind(KeyboardKey.KEY_ESCAPE), new EnterModeCommand(CursorMode.NORMAL));
+        map.add(KeyBind(KeyboardKey.KEY_ESCAPE),
+            new ChainedCommand([
+                new MoveCursorKeyCommand(-1, 0),
+                new EnterModeCommand(CursorMode.NORMAL)
+            ]));
+        map.add(KeyBind(KeyboardKey.KEY_BACKSPACE), new BackspaceCommand());
+        map.setDefault((event) {
+            import std.ascii;
+            import std.conv;
+
+            auto ch = event.key.to!dchar;
+            if(!event.hasModifier(KeyboardKey.KEY_LEFT_SHIFT)) {
+                ch = ch.toLower();
+            }
+            state.editor.insertCharacter(ch);
+        });
     });
 
     container.modeMap(CursorMode.NORMAL, (map) {
-        map.add(KeyBind(KeyboardKey.KEY_I), new EnterModeCommand(CursorMode.INSERT));
         map.add(KeyBind(KeyboardKey.KEY_H), new MoveCursorKeyCommand(-1, 0));
         map.add(KeyBind(KeyboardKey.KEY_J), new MoveCursorKeyCommand(0, 1));
         map.add(KeyBind(KeyboardKey.KEY_K), new MoveCursorKeyCommand(0, -1));
         map.add(KeyBind(KeyboardKey.KEY_L), new MoveCursorKeyCommand(1, 0));
+
+        map.add(KeyBind(KeyboardKey.KEY_I), new EnterModeCommand(CursorMode.INSERT));
+        map.add(KeyBind(KeyboardKey.KEY_A),
+            new ChainedCommand([
+                new MoveCursorKeyCommand(1, 0),
+                new EnterModeCommand(CursorMode.INSERT)
+            ])
+        );
     });
 
     return container;
@@ -214,7 +288,7 @@ void handleInput(TextEditorState state) {
     auto modifiers = state.keyboard.heldModifiers();
     auto keymap = state.keyContainer.current(state.editor.cursor.mode);
     foreach(key; state.keyboard.justPressed) {
-        if(auto match = keymap.match(key, modifiers))
+        if(auto match = keymap.match(KeyEvent(key, modifiers)))
             match.run(state);
     }
 
@@ -226,41 +300,13 @@ void handleInput(TextEditorState state) {
         auto isReadyToRepeat = lastKey.hasBegunRepeating && lastKey.timeSinceRepeatMs > keyRepeatRateMs;
 
         if(lastKey.isDown && (isReadyToBeginRepeating || isReadyToRepeat)) {
-            if(auto match = keymap.match(lastKey.key, modifiers))
+            if(auto match = keymap.match(KeyEvent(lastKey.key, modifiers)))
                 match.run(state);
             lastKey.timeOfLastRepeat = MonoTime.currTime;
         }
     }
 
 }
-
-/* void _handleCommand(TextEditorState state) { */
-/*     int keyRepeatDelayMs = 100; */
-/*     int keyRepeatRateMs = 17; */
-/*     float timeSinceKeyPressed = 0; */
-/*     float timeBetweenKeyRepeats = 0; */
-
-/*     import std.algorithm; */
-/*     import std.array; */
-/*     auto justPressedKeys = updateKeys(state); */
-/*     timeSinceKeyPressed += getDeltaTime() * 1000f; */
-/*     if(justPressedKeys.length > 0) { */
-/*         timeSinceKeyPressed = 0; */
-/*     } */
-
-/*     foreach(keyCommand; determineKeyCommand(justPressedKeys)) { */
-/*         keyCommand.run(state); */
-/*     } */
-
-/*     if(timeSinceKeyPressed > keyRepeatDelayMs && timeBetweenKeyRepeats > keyRepeatRateMs) { */
-/*         timeBetweenKeyRepeats = 0; */
-/*         auto heldKeys = state.pressedKeys.byKeyValue.filter!(kv=>kv.value).map!(kv => kv.key).array; */
-/*         foreach(keyCommand; determineKeyCommand(heldKeys)) { */
-/*             keyCommand.run(state); */
-/*         } */
-/*     } */
-/*     timeBetweenKeyRepeats += getDeltaTime() * 1000f; */
-/* } */
 
 Font loadFont() {
     import raylib : LoadFontEx;
@@ -271,14 +317,14 @@ Font loadFont() {
 
 void main(string[] args) {
     import raylib: SetExitKey;
-    initWindow(1200, 1200, "MOFO TEXT EDITOR");
+    initWindow(1200, 1200, "MOTHER FUCKER");
 
     auto state = new TextEditorState();
     auto documentPath = "/home/jephron/dev/personal/motherfuckingtexteditor/source/main.d";
     state.editor = Editor.fromFilepath(documentPath);
     state.font = loadFont();
     state.keyboard = new Keyboard();
-    state.keyContainer = registerKeyCommands();
+    state.keyContainer = registerKeyCommands(state);
 
     setTargetFPS(60);
     SetExitKey(KeyboardKey.KEY_NULL); // don't close on escape-key press

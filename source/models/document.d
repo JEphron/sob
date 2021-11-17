@@ -4,6 +4,7 @@ import std.path;
 import std.conv;
 import std.file;
 import std.algorithm;
+import std.stdio;
 import std.string;
 import models.cursor;
 
@@ -69,5 +70,27 @@ class Document {
 
     const ViewportIterator getViewport(Viewport viewport) {
         return ViewportIterator(viewport, this);
+    }
+
+    void deleteCharacter(int row, int column) {
+        import std.array;
+        import std.algorithm.mutation;
+        import std.conv;
+
+        if(row < 0 || column < 0) return;
+        auto arr = lines[row].array;
+        arr = arr.remove(column);
+        lines[row] = arr.to!string;
+    }
+
+    void insertCharacter(int row, int column, dchar ch) {
+        import std.array;
+        import std.conv;
+
+        writeln("inserting ", ch.to!int);
+        if(row < 0 || column < 0) return;
+        auto arr = lines[row].array;
+        arr.insertInPlace(column, ch);
+        lines[row] = arr.to!string;
     }
 }

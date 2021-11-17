@@ -11,6 +11,8 @@ enum CursorMode {
 class Cursor {
     Document document;
     CursorMode mode = CursorMode.NORMAL;
+    private int _row = 5;
+    private int _column = 5;
 
     this(Document document) {
         this.document = document;
@@ -23,11 +25,8 @@ class Cursor {
     int column() {
         auto lineLen = document.lineLength(row);
         if (lineLen == 0) return 0;
-        return clamp(_column, 0, lineLen - 1);
+        return clamp(_column, 0, lineLen);
     }
-
-    int _row = 5;
-    int _column = 5;
 
     void moveVertically(int dy) {
         if(dy == 0) return;
@@ -40,5 +39,9 @@ class Cursor {
             _column = column();
         _column += dx;
         if(_column < 0) _column = 0;
+    }
+
+    bool isAtEndOfLine() {
+        return column() == document.lineLength(row);
     }
 }

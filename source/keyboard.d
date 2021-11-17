@@ -3,6 +3,7 @@ module keyboard;
 import core.time;
 import std.array;
 import std.algorithm: canFind, filter, map;
+import std.stdio;
 import input;
 
 immutable KeyboardKey[] MODIFIER_KEYS = [
@@ -43,6 +44,12 @@ class Keyboard {
     void update() {
         foreach(key, ref state; keys) {
             state.justPressed = false;
+            if(!isKeyDown(key)) {
+                registerKeyUp(key);
+            }
+        }
+
+        foreach(key; modifiers.byKey) {
             if(!isKeyDown(key)) {
                 registerKeyUp(key);
             }

@@ -16,4 +16,13 @@ class Editor {
         auto document = Document.open(filepath);
         return new Editor(document, new Cursor(document));
     }
+
+    void insertCharacter(dchar c) {
+        document.insertCharacter(cursor.row, cursor.column, c);
+        cursor.moveHorizontally(1);
+    }
+
+    void deleteBeforeCursor() {
+        document.deleteCharacter(cursor.row, cursor.column - 1);
+    }
 }

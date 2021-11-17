@@ -10,15 +10,23 @@ import models.cursor;
 
 struct Viewport {
     int top;
-    int bottom;
     int left;
-    int right;
+    int width;
+    int height;
+
+    const int bottom() {
+        return top + height;
+    }
+
+    const int right() {
+        return left + width;
+    }
 
     invariant {
-        assert(top > 0);
-        assert(left > 0);
-        assert(top < bottom);
-        assert(left < right);
+        assert(top >= 0);
+        assert(left >= 0);
+        assert(width > 0);
+        assert(height > 0);
     }
 }
 
@@ -33,7 +41,12 @@ struct ViewportIterator {
         auto top = clamp(viewport.top, 0, document.lines.length);
         for(int i = top; i < bottom; i++) {
             auto right = clamp(viewport.right, 0, document.lines[i].length);
-            result = dg(i, document.lines[i][viewport.left..right]);
+            string slice;
+            if(viewport.left > right)
+                slice = [];
+            else
+                slice = document.lines[i][viewport.left..right];
+            result = dg(i, slice);
             if (result)
                 break;
         }

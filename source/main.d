@@ -18,7 +18,7 @@ class TextEditorState {
     Keyboard keyboard;
     KeyMapContainer keyContainer;
     Font font;
-    int fontSize = 32;
+    int fontSize = 30;
     bool shouldQuit;
 }
 
@@ -44,16 +44,16 @@ void drawEditor(TextEditorState state, Editor editor) {
     int spacing = fontSize / defaultFontSize;
 
     float y = 0;
-    auto viewport = Viewport(0, document.lineCount, 0, 100);
 
-    foreach(row, line; document.getViewport(viewport)) {
+    foreach(row, line; editor.visibleLines) {
         auto tint = Colors.GREEN;
         float textOffsetX = 0.0f;
         auto isCursorRow = row == editor.cursor.row;
 
         foreach(i, codepoint; line.codePoints) {
+            auto column = i + editor.viewport.left;
             auto advance = getGlyphAdvance(font, codepoint) * scaleFactor + spacing;
-            auto isCursorCell = isCursorRow && i == editor.cursor.column;
+            auto isCursorCell = isCursorRow && column == editor.cursor.column;
             auto pos = Vector2(textOffsetX, y);
             if(!isWhite(codepoint)) {
                 DrawTextCodepoint(font, codepoint, pos, fontSize, tint);
@@ -66,9 +66,11 @@ void drawEditor(TextEditorState state, Editor editor) {
             textOffsetX += advance;
         }
 
-        if(isCursorRow && editor.cursor.column >= line.length) {
+        // (editor.cursor.column >= line.length)
+        if(isCursorRow && editor.cursor.isAtEndOfLine) {
             auto advance = getGlyphAdvance(font, ' ') * scaleFactor + spacing;
-            drawCursor(editor.cursor, font, fontSize, ' ', Rectangle(textOffsetX, y, advance, textHeight), tint);
+            auto rect = Rectangle(textOffsetX, y, advance, textHeight);
+            drawCursor(editor.cursor, font, fontSize, ' ', rect, tint);
         }
         y += textHeight;
     }
@@ -125,10 +127,9 @@ class MoveCursorKeyCommand : KeyCommand {
     override void run(TextEditorState state) {
         if(!state.editor)
             return;
-        if(dy)
-            state.editor.cursor.moveVertically(dy);
-        if(dx)
-            state.editor.cursor.moveHorizontally(dx);
+        if(dy) state.editor.cursor.moveVertically(dy);
+        if(dx) state.editor.cursor.moveHorizontally(dx);
+        state.editor.scrollToContain(state.editor.cursor);
     }
 }
 
@@ -155,7 +156,6 @@ class BackspaceCommand : KeyCommand {
         if(needsMoveBack) {
             new MoveCursorKeyCommand(-1, 0).run(state);
         }
-
     }
 }
 
@@ -310,20 +310,26 @@ void handleInput(TextEditorState state) {
 
 }
 
+string resourcePath(string path) {
+    import std.path;
+    return buildNormalizedPath(dirName(__FILE_FULL_PATH__) ~ "/../res/" ~ path);
+}
+
 Font loadFont() {
     import raylib : LoadFontEx;
     import std.string;
-    import std.path;
-    auto fontPath = buildNormalizedPath(dirName(__FILE_FULL_PATH__) ~ "/../res/FiraMono-Regular.otf");
-    return LoadFontEx(fontPath.toStringz, 32, null, 250);
+    auto fontPath = resourcePath("FiraMono-Regular.otf");
+    return LoadFontEx(fontPath.toStringz, 30, null, 250);
 }
 
 void main(string[] args) {
     import raylib: SetExitKey;
-    initWindow(1200, 1200, ";_;");
+    const int WIDTH = 1200;
+    const int HEIGHT = 1200;
+    initWindow(WIDTH, HEIGHT, ";_;");
 
     auto state = new TextEditorState();
-    auto documentPath = __FILE_FULL_PATH__;
+    auto documentPath = resourcePath("sample.json");
     state.editor = Editor.fromFilepath(documentPath);
     state.font = loadFont();
     state.keyboard = new Keyboard();

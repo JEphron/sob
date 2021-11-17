@@ -24,6 +24,7 @@ class Cursor {
 
     int column() {
         auto lineLen = document.lineLength(row);
+        import std.stdio;
         if (lineLen == 0) return 0;
         return clamp(_column, 0, lineLen);
     }

@@ -118,4 +118,10 @@ class Document {
         lines.insertInPlace(row, a2.to!string);
         lines.insertInPlace(row, a1.to!string);
     }
+
+    void joinLinesUpwards(int row) {
+        auto line = lines[row];
+        lines[row-1] = lines[row-1] ~ line;
+        lines = lines.remove(row);
+    }
 }

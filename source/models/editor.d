@@ -35,7 +35,14 @@ class Editor {
     }
 
     void deleteBeforeCursor() {
-        document.deleteCharacter(cursor.row, cursor.column - 1);
+        if (cursor.column == 0 && cursor.row > 0) {
+            auto newColumn = document.lineLength(cursor.row-1);
+            document.joinLinesUpwards(cursor.row);
+            cursor.moveVertically(-1);
+            cursor.setColumn(newColumn + 1);
+        } else{
+            document.deleteCharacter(cursor.row, cursor.column - 1);
+        }
     }
 
     void scrollToContain(Cursor cursor) {

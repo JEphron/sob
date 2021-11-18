@@ -29,6 +29,10 @@ class Cursor {
         return clamp(_column, 0, lineLen);
     }
 
+    void setColumn(int newColumn) {
+        _column = newColumn;
+    }
+
     void moveVertically(int dy) {
         if(dy == 0) return;
         _row = clamp(_row + dy, 0, document.lineCount - 1);

@@ -177,3 +177,22 @@ Vector2 normalize(Vector2 v) {
 Vector2 pos(Rectangle rect) {
     return Vector2(rect.x, rect.y);
 }
+
+float getGlyphWidth(dchar codepoint) {
+    import settings;
+    import raylib: GetGlyphIndex;
+    auto font = Settings.font;
+    int index = GetGlyphIndex(font, codepoint);
+    if (font.chars[index].advanceX == 0) {
+        return cast(float)font.recs[index].width;
+    }
+
+    auto fontSize = Settings.fontSize;
+    float scaleFactor = cast(float)fontSize / font.baseSize;
+
+    int defaultFontSize = 10;   // Default Font chars height in pixel
+    if (fontSize < defaultFontSize) fontSize = defaultFontSize;
+    int spacing = fontSize / defaultFontSize;
+
+    return cast(float)font.chars[index].advanceX * scaleFactor + spacing;
+}

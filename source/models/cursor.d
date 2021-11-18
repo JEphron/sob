@@ -2,6 +2,9 @@ module models.cursor;
 
 import std.algorithm: clamp;
 import models.document;
+import graphics;
+import settings;
+import utils;
 
 enum CursorMode {
     NORMAL,
@@ -52,5 +55,19 @@ class Cursor {
 
     bool isAtEndOfLine() {
         return column() == document.lineLength(row);
+    }
+
+    void draw(dchar codepoint, Rectangle glyphRect, Color color) {
+        import raylib : DrawTextCodepoint;
+        final switch(mode) {
+            case CursorMode.NORMAL:
+                drawRectangle(glyphRect, color);
+                color = invertColor(color);
+                DrawTextCodepoint(Settings.font, codepoint, glyphRect.pos, Settings.fontSize, color);
+                break;
+            case CursorMode.INSERT:
+                drawRectangle(Vector2(glyphRect.x, glyphRect.y), Vector2(1, glyphRect.height), color);
+                break;
+        }
     }
 }

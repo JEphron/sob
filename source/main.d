@@ -119,6 +119,10 @@ struct KeyBind {
     KeyboardKey key;
     KeyboardKey mod1;
     KeyboardKey mod2;
+
+    bool hasModifier(KeyboardKey mod) {
+        return mod1 == mod || mod2 == mod;
+    }
 }
 
 struct KeyEvent {
@@ -147,8 +151,9 @@ class KeyMap {
         import std.algorithm.searching: canFind;
         foreach(bind, fn; keybinds) {
             if(bind.key != event.key) continue;
-            if(bind.mod1 && !event.modifiers.canFind(bind.mod1)) continue;
-            if(bind.mod2 && !event.modifiers.canFind(bind.mod2)) continue;
+            if(event.hasModifier(KeyboardKey.KEY_LEFT_SHIFT) && !bind.hasModifier(KeyboardKey.KEY_LEFT_SHIFT)) continue;
+            if(bind.mod1 && !event.hasModifier(bind.mod1)) continue;
+            if(bind.mod2 && !event.hasModifier(bind.mod2)) continue;
             return fn();
         }
         if(defaultAction) defaultAction(event);

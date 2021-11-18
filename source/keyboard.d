@@ -4,6 +4,7 @@ import core.time;
 import std.array;
 import std.algorithm: canFind, filter, map;
 import std.stdio;
+import std.typecons;
 import input;
 
 immutable KeyboardKey[] MODIFIER_KEYS = [
@@ -18,75 +19,123 @@ bool isModifier(KeyboardKey key) {
     return MODIFIER_KEYS.canFind(key);
 }
 
-struct KeyState {
+struct KeyEvent {
     KeyboardKey key;
-    MonoTime pressTime;
-    bool justPressed;
-    bool hasBegunRepeating = false;
-    bool isDown = false;
-    MonoTime timeOfLastRepeat;
+    dchar charValue;
+    int modifiers;
+    KeyAction action;
 
-    long timeHeldMs() {
-        return (MonoTime.currTime - pressTime).total!"msecs";
-    }
-
-    long timeSinceRepeatMs() {
-        return (MonoTime.currTime - timeOfLastRepeat).total!"msecs";
+    bool hasModifier(Modifier mod) {
+        return cast(bool)(modifiers & mod);
     }
 }
 
+enum KeyAction {
+    RELEASE=0,
+    PRESS,
+    REPEAT
+}
+
+enum Modifier {
+    NULL = 0x0000,
+    SHIFT = 0x0001,
+    CONTROL = 0x0002,
+    ALT = 0x0004,
+    SUPER = 0x0008,
+    CAPS = 0x0010,
+    NUM = 0x0020
+}
+
+Modifier toModifier(KeyboardKey key) {
+    switch(key) {
+        case KeyboardKey.KEY_LEFT_SHIFT:
+            return Modifier.SHIFT;
+        case KeyboardKey.KEY_RIGHT_SHIFT:
+            return Modifier.SHIFT;
+        case KeyboardKey.KEY_LEFT_CONTROL:
+            return Modifier.CONTROL;
+        case KeyboardKey.KEY_RIGHT_CONTROL:
+            return Modifier.CONTROL;
+        case KeyboardKey.KEY_LEFT_ALT:
+            return Modifier.ALT;
+        case KeyboardKey.KEY_RIGHT_ALT:
+            return Modifier.ALT;
+        case KeyboardKey.KEY_LEFT_SUPER:
+            return Modifier.SUPER;
+        case KeyboardKey.KEY_RIGHT_SUPER:
+            return Modifier.SUPER;
+        default:
+            assert(false);
+    }
+}
+
+char toCharValueIfPossible(KeyboardKey key) {
+    import std.conv;
+    return key.to!char;
+}
+
+extern(C) alias KeyCallback = void function(void*, int, int, int, int);
+extern(C) void glfwSetKeyCallback(void* window, KeyCallback callback);
+
+extern(C) void handleKey(void* window, int key, int scancode, int action_, int mods) {
+    import std.ascii;
+
+    auto keyboardKey = cast(KeyboardKey)key;
+    auto action = cast(KeyAction)action_;
+
+    if(keyboardKey.isPrintable) return;
+
+    auto event = KeyEvent(keyboardKey, 0, mods, action);
+    Keyboard.get().handleKeyEvent(event);
+}
+
+extern(C) alias CharCallback = void function(void*, dchar);
+extern(C) void glfwSetCharCallback(void* window, CharCallback callback);
+
+extern(C) void handleChar(void* window, dchar c) {
+    auto event = KeyEvent(KeyboardKey.KEY_NULL, c, 0, KeyAction.PRESS);
+    Keyboard.get().handleKeyEvent(event);
+}
+
+
 class Keyboard {
-    bool capsLockIsControl = true;
-    KeyState[KeyboardKey] keys;
-    bool[KeyboardKey] modifiers;
-    KeyState* mostRecentlyPressedKey;
+    private static Keyboard keyboard;
+    int heldModifiers;
 
-    void update() {
-        foreach(key, ref state; keys) {
-            state.justPressed = false;
-            if(!isKeyDown(key)) {
-                registerKeyUp(key);
-            }
-        }
-
-        foreach(key; modifiers.byKey) {
-            if(!isKeyDown(key)) {
-                registerKeyUp(key);
-            }
-        }
-
-        foreach(key; getPressedKeys()) {
-            if(key == KeyboardKey.KEY_CAPS_LOCK && capsLockIsControl) {
-                key = KeyboardKey.KEY_LEFT_CONTROL;
-            }
-            registerKeyDown(key);
-        }
+    static Keyboard get() {
+        if(!keyboard)
+            keyboard = new Keyboard();
+        return keyboard;
     }
 
-    KeyboardKey[] heldModifiers() {
-        return modifiers.keys;
+    private this() {
+        import raylib: GetWindowHandle;
+        auto window = GetWindowHandle();
+        glfwSetKeyCallback(window, &handleKey);
+        glfwSetCharCallback(window, &handleChar);
+        pendingEvents = new KeyEvent[0];
     }
 
-    KeyboardKey[] justPressed() {
-        return keys.byKeyValue.filter!(kv => kv.value.justPressed).map!(kv => kv.key).array;
-    }
+    private KeyEvent[] pendingEvents;
 
-    private void registerKeyDown(KeyboardKey key) {
-        if(key.isModifier) {
-            modifiers[key] = true;
-        } else {
-            keys[key] = KeyState(key, MonoTime.currTime, true);
-            keys[key].isDown = true;
-            mostRecentlyPressedKey = &keys[key];
+    int opApply(scope int delegate(KeyEvent) dg) {
+        int result = 0;
+        foreach(event; pendingEvents) {
+            result = dg(event);
+            if (result)
+                break;
         }
+        pendingEvents = [];
+        return result;
     }
 
-    private void registerKeyUp(KeyboardKey key) {
-        if(key.isModifier) {
-            modifiers.remove(key);
-        } else {
-            keys[key].isDown = false;
-            keys.remove(key);
+    void handleKeyEvent(KeyEvent event) {
+        if(event.key.isModifier) {
+            if(event.action == KeyAction.PRESS)
+                heldModifiers |= event.key.toModifier();
+            if(event.action == KeyAction.RELEASE)
+                heldModifiers ^= event.key.toModifier();
         }
+        pendingEvents ~= event;
     }
 }

@@ -21,6 +21,10 @@ class TextEditorState {
     Font font;
     int fontSize = 30;
     bool shouldQuit;
+
+    this() {
+        keyboard = Keyboard.get();
+    }
 }
 
 void draw(TextEditorState state) {
@@ -117,21 +121,30 @@ class InsertNewlineBelowCommand : KeyCommand {
 
 struct KeyBind {
     KeyboardKey key;
-    KeyboardKey mod1;
-    KeyboardKey mod2;
+    char charValue = 0;
+    Modifier mod1;
+    Modifier mod2;
 
-    bool hasModifier(KeyboardKey mod) {
-        return mod1 == mod || mod2 == mod;
+    this(KeyboardKey key) {
+        this.key = key;
     }
-}
 
-struct KeyEvent {
-    KeyboardKey key;
-    KeyboardKey[] modifiers;
+    this(KeyboardKey key, Modifier mod1) {
+        this.key = key;
+        this.mod1 = mod1;
+    }
 
-    bool hasModifier(KeyboardKey mod) {
-        import std.algorithm;
-        return modifiers.canFind(mod);
+    this(char charValue) {
+        this.charValue = charValue;
+    }
+
+    this(char charValue, Modifier mod1) {
+        this.charValue = charValue;
+        this.mod1 = mod1;
+    }
+
+    bool hasModifier(Modifier mod) {
+        return mod1 == mod || mod2 == mod;
     }
 }
 
@@ -150,8 +163,18 @@ class KeyMap {
     KeyCommand match(KeyEvent event) {
         import std.algorithm.searching: canFind;
         foreach(bind, fn; keybinds) {
-            if(bind.key != event.key) continue;
-            if(event.hasModifier(KeyboardKey.KEY_LEFT_SHIFT) && !bind.hasModifier(KeyboardKey.KEY_LEFT_SHIFT)) continue;
+            if(event.action == KeyAction.RELEASE) continue;
+
+            if(bind.charValue) {
+                if(!event.charValue) continue;
+                if(bind.charValue != event.charValue) continue;
+            }
+
+            if(bind.key) {
+                if(!event.key) continue;
+                if(bind.key != event.key) continue;
+            }
+
             if(bind.mod1 && !event.hasModifier(bind.mod1)) continue;
             if(bind.mod2 && !event.hasModifier(bind.mod2)) continue;
             return fn();
@@ -190,7 +213,7 @@ KeyMapContainer registerKeyCommands(TextEditorState state) {
     auto container = new KeyMapContainer();
 
     container.global((map) {
-        map.add(KeyBind(KeyboardKey.KEY_D, KeyboardKey.KEY_LEFT_CONTROL), new QuitCommand());
+        map.add(KeyBind('d', Modifier.CONTROL), new QuitCommand());
     });
 
     container.modeMap(CursorMode.INSERT, (map) {
@@ -205,39 +228,32 @@ KeyMapContainer registerKeyCommands(TextEditorState state) {
             import std.ascii;
             import std.conv;
 
-            if(!event.key.isPrintable) return;
+            if(!event.charValue) return;
 
-            auto ch = event.key.to!dchar;
-            if(!event.hasModifier(KeyboardKey.KEY_LEFT_SHIFT)) {
-                ch = ch.toLower();
-            }
-            state.editor.insertCharacter(ch);
+            state.editor.insertCharacter(event.charValue);
             state.editor.scrollToContain(state.editor.cursor);
         });
     });
 
     container.modeMap(CursorMode.NORMAL, (map) {
-        map.add(KeyBind(KeyboardKey.KEY_H), new MoveCursorKeyCommand(-1, 0));
-        map.add(KeyBind(KeyboardKey.KEY_J), new MoveCursorKeyCommand(0, 1));
-        map.add(KeyBind(KeyboardKey.KEY_K), new MoveCursorKeyCommand(0, -1));
-        map.add(KeyBind(KeyboardKey.KEY_L), new MoveCursorKeyCommand(1, 0));
-
-        map.add(KeyBind(KeyboardKey.KEY_O),
+        map.add(KeyBind('h'), new MoveCursorKeyCommand(-1, 0));
+        map.add(KeyBind('j'), new MoveCursorKeyCommand(0, 1));
+        map.add(KeyBind('k'), new MoveCursorKeyCommand(0, -1));
+        map.add(KeyBind('l'), new MoveCursorKeyCommand(1, 0));
+        map.add(KeyBind('o'),
             new ChainedCommand([
                 new InsertNewlineBelowCommand(),
                 new EnterModeCommand(CursorMode.INSERT)
             ])
         );
-
-        map.add(KeyBind(KeyboardKey.KEY_O, KeyboardKey.KEY_LEFT_SHIFT),
+        map.add(KeyBind('O'),
             new ChainedCommand([
                 new InsertNewlineAboveCommand(),
                 new EnterModeCommand(CursorMode.INSERT)
             ])
         );
-
-        map.add(KeyBind(KeyboardKey.KEY_I), new EnterModeCommand(CursorMode.INSERT));
-        map.add(KeyBind(KeyboardKey.KEY_A),
+        map.add(KeyBind('i'), new EnterModeCommand(CursorMode.INSERT));
+        map.add(KeyBind('a'),
             new ChainedCommand([
                 new MoveCursorKeyCommand(1, 0),
                 new EnterModeCommand(CursorMode.INSERT)
@@ -249,27 +265,26 @@ KeyMapContainer registerKeyCommands(TextEditorState state) {
 }
 
 void handleInput(TextEditorState state) {
-    import core.time;
-    auto modifiers = state.keyboard.heldModifiers();
     auto keymap = state.keyContainer.current(state.editor.cursor.mode);
-    foreach(key; state.keyboard.justPressed) {
-        if(auto match = keymap.match(KeyEvent(key, modifiers)))
+    foreach(event; state.keyboard) {
+        if(auto match = keymap.match(event))
             match.run(state);
     }
 
-    int keyRepeatDelayMs = 120;
-    int keyRepeatRateMs = 17;
+    /* import core.time; */
+    /* int keyRepeatDelayMs = 120; */
+    /* int keyRepeatRateMs = 17; */
 
-    if(auto lastKey = state.keyboard.mostRecentlyPressedKey) {
-        auto isReadyToBeginRepeating = !lastKey.hasBegunRepeating && lastKey.timeHeldMs > keyRepeatDelayMs;
-        auto isReadyToRepeat = lastKey.hasBegunRepeating && lastKey.timeSinceRepeatMs > keyRepeatRateMs;
+    /* if(auto lastKey = state.keyboard.mostRecentlyPressedKey) { */
+    /*     auto isReadyToBeginRepeating = !lastKey.hasBegunRepeating && lastKey.timeHeldMs > keyRepeatDelayMs; */
+    /*     auto isReadyToRepeat = lastKey.hasBegunRepeating && lastKey.timeSinceRepeatMs > keyRepeatRateMs; */
 
-        if(lastKey.isDown && (isReadyToBeginRepeating || isReadyToRepeat)) {
-            if(auto match = keymap.match(KeyEvent(lastKey.key, modifiers)))
-                match.run(state);
-            lastKey.timeOfLastRepeat = MonoTime.currTime;
-        }
-    }
+    /*     if(lastKey.isDown && (isReadyToBeginRepeating || isReadyToRepeat)) { */
+    /*         if(auto match = keymap.match(KeyEvent(lastKey.key, modifiers))) */
+    /*             match.run(state); */
+    /*         lastKey.timeOfLastRepeat = MonoTime.currTime; */
+    /*     } */
+    /* } */
 }
 
 string resourcePath(string path) {
@@ -293,7 +308,6 @@ void main(string[] args) {
     auto state = new TextEditorState();
     auto documentPath = resourcePath("sample.json");
     state.editor = Editor.fromFilepath(documentPath);
-    state.keyboard = new Keyboard();
     state.keyContainer = registerKeyCommands(state);
 
     setTargetFPS(60);
@@ -301,7 +315,6 @@ void main(string[] args) {
 
     while(!windowShouldClose() && !state.shouldQuit) {
         beginDrawing();
-        state.keyboard.update();
         handleInput(state);
         draw(state);
         endDrawing();

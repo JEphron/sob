@@ -39,6 +39,11 @@ class Editor {
         cursor.moveToBeginningOfLine();
     }
 
+    void insertNewLineAbove() {
+        document.insertNewLine(cursor.row, 0);
+        cursor.moveToBeginningOfLine();
+    }
+
     void deleteBeforeCursor() {
         if (cursor.column == 0 && cursor.row > 0) {
             auto newColumn = document.lineLength(cursor.row-1);
@@ -68,19 +73,6 @@ class Editor {
             auto delta = viewport.topRow - cursor.row;
             viewport.top -= deltaToRows(delta);
         }
-
-        /* auto rightColumn = viewport.rightColumn(cursor.row); */
-        /* if(cursor.column > rightColumn - 1) { */
-        /*     auto delta = cursor.column - rightColumn + 1; */
-        /*     viewport.left += deltaToColumns(delta); */
-        /* } */
-
-        /* auto leftColumn = viewport.leftColumn(cursor.row); */
-        /* if(cursor.column < leftColumn + 1) { */
-        /*     auto delta = leftColumn - cursor.column; */
-        /*     if (leftColumn - delta >= 0) */
-        /*         viewport.left -= deltaToColumns(delta); */
-        /* } */
     }
 
     void draw() {
@@ -128,8 +120,6 @@ class Editor {
             }
             y += textHeight;
         }
-
-        /* viewport.draw(rootPosition); */
     }
 }
 

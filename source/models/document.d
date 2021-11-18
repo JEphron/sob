@@ -7,6 +7,8 @@ import std.algorithm;
 import std.stdio;
 import std.string;
 import models.cursor;
+import std.array;
+import std.conv;
 
 struct Viewport {
     int top;
@@ -86,10 +88,6 @@ class Document {
     }
 
     void deleteCharacter(int row, int column) {
-        import std.array;
-        import std.algorithm.mutation;
-        import std.conv;
-
         if(row < 0 || column < 0) return;
         auto arr = lines[row].array;
         arr = arr.remove(column);
@@ -97,9 +95,6 @@ class Document {
     }
 
     void insertCharacter(int row, int column, dchar ch) {
-        import std.array;
-        import std.conv;
-
         if(row < 0 || column < 0) return;
         auto arr = lines[row].array;
         arr.insertInPlace(column, ch);
@@ -107,9 +102,6 @@ class Document {
     }
 
     void insertNewLine(int row, int column) {
-        import std.array;
-        import std.conv;
-
         if(row < 0 || column < 0) return;
         auto arr = lines[row].array;
         auto a1 = arr[0..column];

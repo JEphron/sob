@@ -11,11 +11,12 @@ class Editor {
     Document document;
     Cursor cursor;
     Viewport viewport;
+    Vector2 rootPosition;
 
     private this(Document document) {
         this.document = document;
         this.cursor = new Cursor(document);
-        this.viewport =  Viewport(0, 0, 400, 400);
+        this.viewport =  Viewport(0, 0, 400, 400, document);
     }
 
     static Editor fromFilepath(string filepath) {
@@ -50,25 +51,37 @@ class Editor {
     }
 
     void scrollToContain(Cursor cursor) {
-        if(cursor.row > viewport.bottom - 1) {
-            auto delta = cursor.row - viewport.bottom + 1;
-            viewport.top += delta;
+        int deltaToRows(int delta) {
+            return cast(int)(delta * Settings.lineHeight);
         }
 
-        if(cursor.row < viewport.top) {
-            auto delta = viewport.top - cursor.row;
-            viewport.top -= delta;
+        int deltaToColumns(int delta) {
+            return delta * 12;
         }
 
-        if(cursor.column > viewport.right - 1) {
-            auto delta = cursor.column - viewport.right + 1;
-            viewport.left += delta;
+        if(cursor.row > viewport.bottomRow - 1) {
+            auto delta = cursor.row - viewport.bottomRow + 1;
+            viewport.top += deltaToRows(delta);
         }
 
-        if(cursor.column < viewport.left + 1) {
-            auto delta = viewport.left - cursor.column;
-            if (viewport.left - delta >= 0)
-                viewport.left -= delta;
+        if(cursor.row < viewport.topRow) {
+            auto delta = viewport.topRow - cursor.row;
+            viewport.top -= deltaToRows(delta);
+        }
+
+        auto rightColumn = viewport.rightColumn(cursor.row);
+        import std.stdio;
+        writeln(cursor.column, ' ', rightColumn);
+        if(cursor.column > rightColumn - 1) {
+            auto delta = cursor.column - rightColumn + 1;
+            viewport.left += deltaToColumns(delta);
+        }
+
+        auto leftColumn = viewport.leftColumn(cursor.row);
+        if(cursor.column < leftColumn + 1) {
+            auto delta = leftColumn - cursor.column;
+            if (leftColumn - delta >= 0)
+                viewport.left -= deltaToColumns(delta);
         }
     }
 
@@ -88,15 +101,14 @@ class Editor {
         if (fontSize < defaultFontSize) fontSize = defaultFontSize;
         int spacing = fontSize / defaultFontSize;
 
-        float y = 0;
+        float y = rootPosition.y;
 
         foreach(row, line; visibleLines) {
             auto tint = Colors.GREEN;
-            float textOffsetX = 0.0f;
+            float textOffsetX = rootPosition.x;
             auto isCursorRow = row == cursor.row;
 
-            foreach(i, codepoint; line.codePoints) {
-                auto column = i + viewport.left;
+            foreach(column, codepoint; line) {
                 auto advance = getGlyphAdvance(font, codepoint) * scaleFactor + spacing;
                 auto isCursorCell = isCursorRow && column == cursor.column;
                 auto pos = Vector2(textOffsetX, y);
@@ -119,7 +131,7 @@ class Editor {
             y += textHeight;
         }
 
-        viewport.draw();
+        viewport.draw(rootPosition);
     }
 }
 

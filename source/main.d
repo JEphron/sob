@@ -250,8 +250,9 @@ string resourcePath(string path) {
 Font loadFont() {
     import raylib : LoadFontEx;
     import std.string;
-    auto fontPath = resourcePath("FiraMono-Regular.otf");
-    return LoadFontEx(fontPath.toStringz, 30, null, 250);
+    /* auto fontPath = resourcePath("FiraMono-Regular.otf"); */
+    auto fontPath = resourcePath("DejaVuSerif.ttf");
+    return LoadFontEx(fontPath.toStringz, Settings.fontSize, null, 250);
 }
 
 void main(string[] args) {

@@ -105,4 +105,17 @@ class Document {
         arr.insertInPlace(column, ch);
         lines[row] = arr.to!string;
     }
+
+    void insertNewLine(int row, int column) {
+        import std.array;
+        import std.conv;
+
+        if(row < 0 || column < 0) return;
+        auto arr = lines[row].array;
+        auto a1 = arr[0..column];
+        auto a2 = arr[column..$];
+        lines = lines.remove(row);
+        lines.insertInPlace(row, a2.to!string);
+        lines.insertInPlace(row, a1.to!string);
+    }
 }

@@ -42,6 +42,10 @@ class Cursor {
         if(_column < 0) _column = 0;
     }
 
+    void moveToBeginningOfLine() {
+        _column = 0;
+    }
+
     bool isAtEndOfLine() {
         return column() == document.lineLength(row);
     }

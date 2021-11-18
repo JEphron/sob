@@ -28,6 +28,12 @@ class Editor {
         cursor.moveHorizontally(1);
     }
 
+    void insertNewLine() {
+        document.insertNewLine(cursor.row, cursor.column);
+        cursor.moveVertically(1);
+        cursor.moveToBeginningOfLine();
+    }
+
     void deleteBeforeCursor() {
         document.deleteCharacter(cursor.row, cursor.column - 1);
     }

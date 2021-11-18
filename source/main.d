@@ -110,6 +110,12 @@ abstract class KeyCommand {
     void run(TextEditorState state);
 }
 
+class NewlineCommand : KeyCommand {
+    override void run(TextEditorState state) {
+        state.editor.insertNewLine();
+    }
+}
+
 class QuitCommand : KeyCommand {
     override void run(TextEditorState state) {
         state.shouldQuit = true;
@@ -253,6 +259,7 @@ KeyMapContainer registerKeyCommands(TextEditorState state) {
                 new EnterModeCommand(CursorMode.NORMAL)
             ]));
         map.add(KeyBind(KeyboardKey.KEY_BACKSPACE), new BackspaceCommand());
+        map.add(KeyBind(KeyboardKey.KEY_ENTER), new NewlineCommand());
         map.setDefault((event) {
             import std.ascii;
             import std.conv;

@@ -8,11 +8,14 @@ import std.typecons;
 import input;
 
 immutable KeyboardKey[] MODIFIER_KEYS = [
-    // right keyboard can suck it
     KeyboardKey.KEY_LEFT_SHIFT,
     KeyboardKey.KEY_LEFT_CONTROL,
     KeyboardKey.KEY_LEFT_ALT,
-    KeyboardKey.KEY_LEFT_SUPER
+    KeyboardKey.KEY_LEFT_SUPER,
+    KeyboardKey.KEY_RIGHT_SHIFT,
+    KeyboardKey.KEY_RIGHT_CONTROL,
+    KeyboardKey.KEY_RIGHT_ALT,
+    KeyboardKey.KEY_RIGHT_SUPER
 ];
 
 bool isModifier(KeyboardKey key) {

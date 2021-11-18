@@ -270,21 +270,6 @@ void handleInput(TextEditorState state) {
         if(auto match = keymap.match(event))
             match.run(state);
     }
-
-    /* import core.time; */
-    /* int keyRepeatDelayMs = 120; */
-    /* int keyRepeatRateMs = 17; */
-
-    /* if(auto lastKey = state.keyboard.mostRecentlyPressedKey) { */
-    /*     auto isReadyToBeginRepeating = !lastKey.hasBegunRepeating && lastKey.timeHeldMs > keyRepeatDelayMs; */
-    /*     auto isReadyToRepeat = lastKey.hasBegunRepeating && lastKey.timeSinceRepeatMs > keyRepeatRateMs; */
-
-    /*     if(lastKey.isDown && (isReadyToBeginRepeating || isReadyToRepeat)) { */
-    /*         if(auto match = keymap.match(KeyEvent(lastKey.key, modifiers))) */
-    /*             match.run(state); */
-    /*         lastKey.timeOfLastRepeat = MonoTime.currTime; */
-    /*     } */
-    /* } */
 }
 
 string resourcePath(string path) {

@@ -22,17 +22,6 @@ bool isModifier(KeyboardKey key) {
     return MODIFIER_KEYS.canFind(key);
 }
 
-struct KeyEvent {
-    KeyboardKey key;
-    dchar charValue;
-    int modifiers;
-    KeyAction action;
-
-    bool hasModifier(Modifier mod) {
-        return cast(bool)(modifiers & mod);
-    }
-}
-
 enum KeyAction {
     RELEASE=0,
     PRESS,
@@ -72,9 +61,15 @@ Modifier toModifier(KeyboardKey key) {
     }
 }
 
-char toCharValueIfPossible(KeyboardKey key) {
-    import std.conv;
-    return key.to!char;
+struct KeyEvent {
+    KeyboardKey key;
+    dchar charValue;
+    int modifiers;
+    KeyAction action;
+
+    bool hasModifier(Modifier mod) {
+        return cast(bool)(modifiers & mod);
+    }
 }
 
 extern(C) alias KeyCallback = void function(void*, int, int, int, int);

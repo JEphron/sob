@@ -109,6 +109,12 @@ class InsertNewlineAboveCommand : KeyCommand {
     }
 }
 
+class InsertNewlineBelowCommand : KeyCommand {
+    override void run(TextEditorState state) {
+        state.editor.insertNewLineBelow();
+    }
+}
+
 struct KeyBind {
     KeyboardKey key;
     KeyboardKey mod1;
@@ -210,6 +216,13 @@ KeyMapContainer registerKeyCommands(TextEditorState state) {
         map.add(KeyBind(KeyboardKey.KEY_J), new MoveCursorKeyCommand(0, 1));
         map.add(KeyBind(KeyboardKey.KEY_K), new MoveCursorKeyCommand(0, -1));
         map.add(KeyBind(KeyboardKey.KEY_L), new MoveCursorKeyCommand(1, 0));
+
+        map.add(KeyBind(KeyboardKey.KEY_O),
+            new ChainedCommand([
+                new InsertNewlineBelowCommand(),
+                new EnterModeCommand(CursorMode.INSERT)
+            ])
+        );
 
         map.add(KeyBind(KeyboardKey.KEY_O, KeyboardKey.KEY_LEFT_SHIFT),
             new ChainedCommand([

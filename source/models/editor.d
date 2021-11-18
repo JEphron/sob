@@ -44,6 +44,12 @@ class Editor {
         cursor.moveToBeginningOfLine();
     }
 
+    void insertNewLineBelow() {
+        document.insertNewLine(cursor.row + 1, 0);
+        cursor.moveVertically(1);
+        cursor.moveToBeginningOfLine();
+    }
+
     void deleteBeforeCursor() {
         if (cursor.column == 0 && cursor.row > 0) {
             auto newColumn = document.lineLength(cursor.row-1);

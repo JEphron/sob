@@ -14,57 +14,15 @@ import std.conv;
 import models.viewport;
 import utils;
 
-struct LineIterator {
-    const Viewport viewport;
-    const Document document;
-    int row;
-
-    int opApply(scope int delegate(ulong, dchar) dg) {
-        import std.encoding;
-        auto line = document.getLine(row);
-
-        float totalWidth = 0;
-        int result = 0;
-        foreach(ix, codepoint; line.codePoints) {
-            totalWidth += getGlyphWidth(codepoint);
-            if(totalWidth > viewport.right) {
-                break;
-            }
-            if(totalWidth > viewport.left) {
-                result = dg(ix, codepoint);
-                if (result)
-                    break;
-            }
-        }
-
-        return result;
-    }
-}
-
 struct ViewportIterator {
     const Viewport viewport;
     const Document document;
 
-    // right now these are in "cell" coordinates, so row/column
-    // however, for correctness they should be in pixels
-    // this means that the Editor must be able to determine which characters lie within
-    // a given pixelspace rect
-    // to do this, we'll start with the lineHeight (which is constant)
-    // bottom > lineHeight * nLines > top
-    // then we'll do codepoints, so for each line
-    // start from the beginning, measuring each codepoint and summing the width
-    // until we exceed 'left'. Then yield codepoints until the sum exceeds 'right'.
-
-    int opApply(scope int delegate(int, LineIterator) dg) {
-        import std.math;
-
+    int opApply(scope int delegate(int, string) dg) {
         int result = 0;
-
-
         for(int row = viewport.topRow; row < viewport.bottomRow; row++) {
             if(row >= document.lineCount) break;
-            auto lineIterator = LineIterator(viewport, document, row);
-            result = dg(row, lineIterator);
+            result = dg(row, document.getLine(row));
             if (result)
                 break;
         }

@@ -30,38 +30,6 @@ struct Viewport {
         return cast(int)ceil(bottom / Settings.lineHeight);
     }
 
-    const int rightColumn(int row) {
-        // oh no...
-
-        auto line = document.getLine(row);
-        int numCodePoints = 0;
-        float totalWidth = 0;
-        foreach(ix, codePoint; line.codePoints) {
-            totalWidth += getGlyphWidth(codePoint);
-            if(totalWidth > right) {
-                break;
-            }
-            numCodePoints++;
-        }
-        return numCodePoints;
-    }
-
-    const int leftColumn(int row) {
-        // oh nooooo...
-
-        auto line = document.getLine(row);
-        int numCodePoints = 0;
-        float totalWidth = 0;
-        foreach(ix, codePoint; line.codePoints) {
-            totalWidth += getGlyphWidth(codePoint);
-            if(totalWidth > left) {
-                break;
-            }
-            numCodePoints++;
-        }
-        return numCodePoints;
-    }
-
     void draw(Vector2 rootPosition) {
         import graphics;
         drawRectangleLines(Rectangle(rootPosition.x, rootPosition.y, width, height), Colors.RED);

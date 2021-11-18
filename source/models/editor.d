@@ -16,7 +16,7 @@ class Editor {
     private this(Document document) {
         this.document = document;
         this.cursor = new Cursor(document);
-        this.viewport =  Viewport(0, 0, 400, 400, document);
+        this.viewport = Viewport(0, 0, Settings.windowWidth, Settings.windowHeight, document);
     }
 
     static Editor fromFilepath(string filepath) {
@@ -71,7 +71,6 @@ class Editor {
 
         auto rightColumn = viewport.rightColumn(cursor.row);
         import std.stdio;
-        writeln(cursor.column, ' ', rightColumn);
         if(cursor.column > rightColumn - 1) {
             auto delta = cursor.column - rightColumn + 1;
             viewport.left += deltaToColumns(delta);
@@ -131,7 +130,7 @@ class Editor {
             y += textHeight;
         }
 
-        viewport.draw(rootPosition);
+        /* viewport.draw(rootPosition); */
     }
 }
 

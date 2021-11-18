@@ -72,18 +72,32 @@ struct KeyEvent {
     }
 }
 
+bool isAnyMod(int flags, Modifier[] ms...) {
+    foreach(m; ms)
+        if(flags & m) return true;
+    return false;
+}
+
 extern(C) alias KeyCallback = void function(void*, int, int, int, int);
 extern(C) void glfwSetKeyCallback(void* window, KeyCallback callback);
 
 extern(C) void handleKey(void* window, int key, int scancode, int action_, int mods) {
     import std.ascii;
+    import std.conv;
 
     auto keyboardKey = cast(KeyboardKey)key;
     auto action = cast(KeyAction)action_;
 
-    if(keyboardKey.isPrintable) return;
+    dchar charValue = 0;
 
-    auto event = KeyEvent(keyboardKey, 0, mods, action);
+    auto maybeShortcut = mods.isAnyMod(Modifier.CONTROL, Modifier.ALT, Modifier.SUPER);
+    if(keyboardKey.isPrintable && !maybeShortcut) return;
+
+    if(maybeShortcut && keyboardKey.isPrintable) {
+        charValue = keyboardKey.to!dchar.toLower();
+    }
+
+    auto event = KeyEvent(keyboardKey, charValue, mods, action);
     Keyboard.get().handleKeyEvent(event);
 }
 

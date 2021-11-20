@@ -1,8 +1,10 @@
 {
 	"fileVersion": 1,
 	"versions": {
+		"bc-string": "1.2.2",
 		"bindbc-loader": "1.0.1",
 		"bindbc-sdl": "1.0.1",
+		"d_tree_sitter": {"path":"../../../sources/d-tree-sitter"},
 		"ddmp": "0.0.1-0.dev.3",
 		"fluent-asserts": "0.13.3",
 		"libdparse": "0.14.0",

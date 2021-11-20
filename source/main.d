@@ -14,6 +14,7 @@ import models.document;
 import models.cursor;
 import settings;
 
+
 class TextEditorState {
     Editor editor;
     Keyboard keyboard;
@@ -284,7 +285,8 @@ Font loadFont() {
     return LoadFontEx(fontPath.toStringz, Settings.fontSize, null, 250);
 }
 
-void main(string[] args) {
+
+void runStuff() {
     import raylib: SetExitKey;
     initWindow(Settings.windowWidth, Settings.windowHeight, ";_;");
 
@@ -306,4 +308,50 @@ void main(string[] args) {
     }
 
     closeWindow();
+}
+
+import d_tree_sitter : Language, Query;
+
+class Highlighter {
+    Language language;
+    Query query;
+
+    this(Language language, string queryString) {
+        query = Query(language, queryString);
+    }
+}
+
+extern(C) Language tree_sitter_json();
+
+
+void main(string[] args) {
+    import d_tree_sitter : Parser;
+
+    auto jsonLanguage = tree_sitter_json();
+    auto parser = new Parser(jsonLanguage);
+
+    auto jsonHighlighter = new Highlighter(jsonLanguage, `
+        (pair
+          key: (_) @keyword)
+
+        (string) @string
+
+        (object
+          "{" @escape
+          (_)
+          "}" @escape)
+    `);
+
+    import std.file;
+    auto source = resourcePath("sample.json").readText();
+    writeln("source:", source);
+    /* auto source = "{\"hello\": [1,2,3]}"; */
+    auto tree = parser.tree_from(source);
+    auto q = jsonHighlighter.query;
+    foreach(match; q.exec(tree.root_node).toList) {
+        foreach(capture; match.captures) {
+            auto codeSlice = source[capture.node.start_byte..capture.node.end_byte];
+            writeln("pattern(",match.pattern_index,"): ",capture.name, " - ", codeSlice);
+        }
+    }
 }

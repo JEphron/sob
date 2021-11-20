@@ -11,9 +11,13 @@
 	"copyright": "Copyright © 2021, jephron",
 	"dependencies": {
 		"bindbc-sdl": "~>1.0.1",
-		"raylib-d": "~>3.1.0"
+		"raylib-d": "~>3.1.0",
+        "d_tree_sitter": {
+            "path": "/home/jephron/sources/d-tree-sitter"
+        }
 	},
     "libs": ["raylib"],
+    "lflags": ["/home/jephron/dev/personal/sob/source/tree_sitter_grammars/json_parser.so"],
 	"description": "My angry text editor",
 	"license": "proprietary",
 	"name": "sob"

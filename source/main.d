@@ -310,7 +310,7 @@ void runStuff() {
     closeWindow();
 }
 
-import d_tree_sitter : Language, Query;
+import d_tree_sitter : Language, Query, Parser;
 
 class Highlighter {
     Language language;
@@ -322,36 +322,44 @@ class Highlighter {
 }
 
 extern(C) Language tree_sitter_json();
+extern(C) Language tree_sitter_javascript();
 
 
 void main(string[] args) {
-    import d_tree_sitter : Parser;
+    testJs();
+}
 
-    auto jsonLanguage = tree_sitter_json();
-    auto parser = new Parser(jsonLanguage);
+void testJs() {
+    auto source = `function foo(arg1) {return arg1 + 1;}`;
+    auto language = tree_sitter_javascript();
+    auto parser = Parser(language);
+    auto query = Query(language, readResourceAsString("queries/js/highlights.scm"));
+    dumpQueryResults(&parser, &query, source);
+}
 
-    auto jsonHighlighter = new Highlighter(jsonLanguage, `
-        (pair
-          key: (_) @keyword)
-
-        (string) @string
-
-        (object
-          "{" @escape
-          (_)
-          "}" @escape)
-    `);
-
+string readResourceAsString(string path) {
     import std.file;
-    auto source = resourcePath("sample.json").readText();
+    return resourcePath(path).readText();
+}
+
+void testJson() {
+    import d_tree_sitter : Parser;
+    auto jsonLanguage = tree_sitter_json();
+    auto parser = Parser(jsonLanguage);
+
+    auto query = Query(jsonLanguage, readResourceAsString("queries/json/highlights.scm"));
+
+    auto jsonSource = readResourceAsString("sample.json");
+    dumpQueryResults(&parser, &query, jsonSource);
+}
+
+void dumpQueryResults(Parser* parser, Query* query, string source) {
     writeln("source:", source);
-    /* auto source = "{\"hello\": [1,2,3]}"; */
     auto tree = parser.tree_from(source);
-    auto q = jsonHighlighter.query;
-    foreach(match; q.exec(tree.root_node).toList) {
+    foreach(match; query.exec(tree.root_node).toList) {
         foreach(capture; match.captures) {
             auto codeSlice = source[capture.node.start_byte..capture.node.end_byte];
-            writeln("pattern(",match.pattern_index,"): ",capture.name, " - ", codeSlice);
+            writeln("pattern(", match.pattern_index, "): ", capture.name, " - ", codeSlice);
         }
     }
 }

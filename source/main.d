@@ -310,31 +310,177 @@ void runStuff() {
     closeWindow();
 }
 
-import d_tree_sitter : Language, Query, Parser;
-
-class Highlighter {
-    Language language;
-    Query query;
-
-    this(Language language, string queryString) {
-        query = Query(language, queryString);
-    }
-}
+import d_tree_sitter : Language, Query, Parser, Tree, TreeVisitor, TreeCursor, Point;
 
 extern(C) Language tree_sitter_json();
 extern(C) Language tree_sitter_javascript();
 
 
 void main(string[] args) {
-    testJs();
+    initWindow(Settings.windowWidth, Settings.windowHeight, ";_;");
+    Settings.font = loadFont();
+    setTargetFPS(60);
+
+    auto editor = JSEditor.fromFile(resourcePath("test.js"));
+
+
+    while(!windowShouldClose()) {
+        clearBackground(Colors.BLACK);
+        beginDrawing();
+        editor.draw();
+        endDrawing();
+    }
+
+    closeWindow();
 }
 
-void testJs() {
-    auto source = `function foo(arg1) {return arg1 + 1;}`;
-    auto language = tree_sitter_javascript();
-    auto parser = Parser(language);
-    auto query = Query(language, readResourceAsString("queries/js/highlights.scm"));
-    dumpQueryResults(&parser, &query, source);
+import std.conv;
+
+
+struct Interval {
+    Point start;
+    Point end;
+    string name;
+}
+
+bool pointBetween(Point a, Point b, Point c) {
+
+    if(a.row == b.row && a.row == c.row) return a.column >= b.column && a.column < c.column;
+    if(a.row >= b.row && a.row < c.row) return true;
+    if(a.row == c.row) return a.column < c.column;
+    return false;
+}
+
+class Highlighter {
+    Interval[] intervals;
+
+    this(Tree tree, Query query) {
+        foreach(match; query.exec(tree.root_node).toList) {
+            foreach(capture; match.captures) {
+                insert(Interval(capture.node.start_position, capture.node.end_position, capture.name));
+            }
+        }
+    }
+
+    void insert(Interval interval) {
+        writeln(interval);
+        intervals ~= interval;
+    }
+
+    string[] find(Point point) {
+        import std.algorithm;
+        import std.array;
+        return intervals.filter!(it => pointBetween(point, it.start, it.end)).map!(it => it.name).array;
+    }
+
+    Color getColorForPoint(Point point) {
+        auto categories = find(point);
+        foreach(category; categories) {
+            if(category == "comment") return Colors.GRAY;
+            if(category == "keyword") return Colors.ORANGE;
+            if(category == "function") return Colors.BLUE;
+            if(category == "string") return Colors.YELLOW;
+            if(category == "number") return Colors.PURPLE;
+            if(category == "operator") return Colors.RED;
+        }
+        return Colors.WHITE;
+    }
+}
+
+
+class TreeRenderer : TreeVisitor {
+    string source;
+    Vector2 cellSize;
+    int h = 0;
+    Highlighter highlighter;
+
+    this(string source, Highlighter highlighter) {
+        cellSize = measureText2d(" ", Settings.font, Settings.fontSize, 1);
+        this.highlighter = highlighter;
+        this.source = source;
+    }
+
+    extern(C) bool enter_node(TreeCursor* cursor) @trusted {
+        auto node = cursor.node();
+        if(node.child_count == 0) {
+            auto str = source[node.start_byte..node.end_byte];
+            auto startPoint = node.start_position();
+            auto startVec = Vector2(startPoint.column * cellSize.x, startPoint.row * cellSize.y);
+            auto color = colorFromHSV(h%360, 1, 1);
+            auto dimensions = Vector2(cellSize.x * str.length, cellSize.y);
+
+            /* drawRectangle(startVec, dimensions, color.withAlpha(0.3f)); */
+            /* if(pointInRectangle(getMousePosition(), rectFromTwoVectors(startVec, dimensions))) { */
+            /*     drawRectangleLines(startVec, dimensions, Colors.WHITE); */
+            /* } */
+
+            drawMonoTextLine(str, startPoint, startVec, highlighter);
+            h += 1000;
+        }
+        return true;
+    }
+
+    extern(C) void leave_node(TreeCursor* cursor) {
+    }
+}
+
+void drawMonoTextLine(string str, Point point, Vector2 pos, Highlighter highlighter) {
+    import std.encoding;
+    import std.conv;
+    import std.ascii;
+    import raylib : DrawTextCodepoint, GetFontDefault;
+
+    Font font = Settings.font;
+    auto fontSize = Settings.fontSize;
+
+    auto cellSize = measureText2d(" ", font, fontSize, 1);
+
+    auto row = point.row;
+    auto column = point.column;
+    auto textOffsetX = pos.x;
+    foreach(codepoint; str.codePoints) {
+        if(!isWhite(codepoint)) {
+            auto color = highlighter.getColorForPoint(Point(row, column));
+            DrawTextCodepoint(font, codepoint, Vector2(textOffsetX, pos.y), fontSize, color);
+        }
+        textOffsetX += cellSize.x;
+        column++;
+    }
+}
+
+class JSEditor {
+    Parser parser;
+    Language language;
+    Query highlightingQuery;
+    Tree tree;
+    Highlighter highlighter;
+    string source;
+
+    this(string source) {
+        this.source = source;
+        language = tree_sitter_javascript();
+        parser = Parser(language);
+        highlightingQuery = Query(language, readResourceAsString("queries/js/highlights.scm"));
+        tree = parser.tree_from(source);
+        highlighter = new Highlighter(tree, highlightingQuery);
+    }
+
+    static JSEditor fromFile(string filepath) {
+        import std.file;
+        auto source = filepath.readText();
+        return new JSEditor(source);
+    }
+
+    void draw() {
+        /* tree.traverse(new TreeRenderer(source, highlighter)); */
+
+        auto pos = Vector2(10, 10);
+        foreach(row, line; source.split('\n')) {
+            auto point = Point(row.to!uint, 0);
+            drawMonoTextLine(line, point, pos, highlighter);
+            pos.y += Settings.lineHeight;
+        }
+    }
 }
 
 string readResourceAsString(string path) {
@@ -352,6 +498,7 @@ void testJson() {
     auto jsonSource = readResourceAsString("sample.json");
     dumpQueryResults(&parser, &query, jsonSource);
 }
+
 
 void dumpQueryResults(Parser* parser, Query* query, string source) {
     writeln("source:", source);

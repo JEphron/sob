@@ -142,6 +142,11 @@ void drawRectangleLines(Vector2 pos, float width, float height, Color c) {
     DrawRectangleLines(pos.x.to!int, pos.y.to!int, width.to!int, height.to!int, c);
 }
 
+void drawRectangleLines(Vector2 pos, Vector2 dim, Color c) {
+    import raylib: DrawRectangleLines;
+    DrawRectangleLines(pos.x.to!int, pos.y.to!int, dim.x.to!int, dim.y.to!int, c);
+}
+
 void drawRectangleLines(Rectangle r, Color c) {
     import raylib: DrawRectangleLines;
     DrawRectangleLines(r.x.to!int, r.y.to!int, r.width.to!int, r.height.to!int, c);
@@ -230,6 +235,10 @@ Rectangle rectFromTwoCorners(Vector2 corner_a, Vector2 corner_b) {
     return Rectangle(corner_a.x, corner_a.y, dim.x, dim.y);
 }
 
+Rectangle rectFromTwoVectors(Vector2 pos, Vector2 dims) {
+    return Rectangle(pos.x, pos.y, dims.x, dims.y);
+}
+
 void drawText(string str, Vector2 pos, int size, Color color) {
     import raylib: DrawText;
     DrawText(str.toStringz, pos.x.to!int, pos.y.to!int, size, color);
@@ -252,9 +261,19 @@ Vector2 measureText2d(string str, float fontSize, float spacing) {
     return MeasureTextEx(font, str.toStringz, fontSize, spacing);
 }
 
+Vector2 measureText2d(string str, Font font, float fontSize, float spacing) {
+    import raylib: MeasureTextEx, GetFontDefault;
+    return MeasureTextEx(font, str.toStringz, fontSize, spacing);
+}
+
 void drawCenteredText(string text, Vector2 position, int fontSize, Color color) {
     auto width = measureText(text, fontSize);
     drawText(text, position - Vector2(width/2, 0), fontSize, color);
+}
+
+Color withAlpha(Color c, float a) {
+    import raylib: ColorAlpha;
+    return ColorAlpha(c, a);
 }
 
 Font loadFont(string fileName) {

@@ -19,7 +19,9 @@
     "libs": ["raylib"],
     "lflags": [
         "/home/jephron/dev/personal/sob/source/tree_sitter_grammars/json_parser.so",
-        "/home/jephron/dev/personal/sob/source/tree_sitter_grammars/js_parser.so"],
+        "/home/jephron/dev/personal/sob/source/tree_sitter_grammars/js_parser.so",
+        "/home/jephron/dev/personal/sob/source/tree_sitter_grammars/libtree_sitter_highlight.a"
+    ],
 	"description": "My angry text editor",
 	"license": "proprietary",
 	"name": "sob"

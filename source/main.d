@@ -321,8 +321,7 @@ void main(string[] args) {
     Settings.font = loadFont();
     setTargetFPS(60);
 
-    auto editor = JSEditor.fromFile(resourcePath("test.js"));
-
+    auto editor = JSEditor.fromFile(resourcePath("smalljq.js"));
 
     while(!windowShouldClose()) {
         clearBackground(Colors.BLACK);
@@ -344,7 +343,6 @@ struct Interval {
 }
 
 bool pointBetween(Point a, Point b, Point c) {
-
     if(a.row == b.row && a.row == c.row) return a.column >= b.column && a.column < c.column;
     if(a.row >= b.row && a.row < c.row) return true;
     if(a.row == c.row) return a.column < c.column;
@@ -363,13 +361,13 @@ class Highlighter {
     }
 
     void insert(Interval interval) {
-        writeln(interval);
         intervals ~= interval;
     }
 
     string[] find(Point point) {
         import std.algorithm;
         import std.array;
+        // todo: investigate interval trees
         return intervals.filter!(it => pointBetween(point, it.start, it.end)).map!(it => it.name).array;
     }
 
@@ -378,6 +376,8 @@ class Highlighter {
         foreach(category; categories) {
             if(category == "comment") return Colors.GRAY;
             if(category == "keyword") return Colors.ORANGE;
+            if(category == "constant") return Colors.GREEN;
+            if(category == "property") return Colors.PINK;
             if(category == "function") return Colors.BLUE;
             if(category == "string") return Colors.YELLOW;
             if(category == "number") return Colors.PURPLE;
@@ -403,18 +403,22 @@ class TreeRenderer : TreeVisitor {
     extern(C) bool enter_node(TreeCursor* cursor) @trusted {
         auto node = cursor.node();
         if(node.child_count == 0) {
-            auto str = source[node.start_byte..node.end_byte];
+            /* auto str = source[node.start_byte..node.end_byte]; */
             auto startPoint = node.start_position();
-            auto startVec = Vector2(startPoint.column * cellSize.x, startPoint.row * cellSize.y);
-            auto color = colorFromHSV(h%360, 1, 1);
-            auto dimensions = Vector2(cellSize.x * str.length, cellSize.y);
+            auto startVec = Vector2(10 + startPoint.column * cellSize.x, 10 + startPoint.row * cellSize.y);
 
-            /* drawRectangle(startVec, dimensions, color.withAlpha(0.3f)); */
+            auto endPoint = node.end_position();
+            auto endVec = Vector2(10 + endPoint.column * cellSize.x, 10 + endPoint.row * cellSize.y + cellSize.y);
+
+            auto color = colorFromHSV(h%360, 1, 1);
+            /* auto dimensions = Vector2(cellSize.x * str.length, cellSize.y); */
+
+            drawRectangle(Vector2(startVec.x, startVec.y), Vector2(endVec.x - startVec.x, cellSize.y), color.withAlpha(0.2f));
             /* if(pointInRectangle(getMousePosition(), rectFromTwoVectors(startVec, dimensions))) { */
-            /*     drawRectangleLines(startVec, dimensions, Colors.WHITE); */
+            /*     /1* drawRectangleLines(startVec, dimensions, Colors.WHITE); *1/ */
             /* } */
 
-            drawMonoTextLine(str, startPoint, startVec, highlighter);
+            /* drawMonoTextLine(str, startPoint, startVec, highlighter); */
             h += 1000;
         }
         return true;
@@ -472,7 +476,7 @@ class JSEditor {
     }
 
     void draw() {
-        /* tree.traverse(new TreeRenderer(source, highlighter)); */
+        tree.traverse(new TreeRenderer(source, highlighter));
 
         auto pos = Vector2(10, 10);
         foreach(row, line; source.split('\n')) {

@@ -13,4 +13,10 @@ static class Settings {
     static float lineHeight() {
         return font.baseSize * fontSize/cast(float)font.baseSize;
     }
+
+    static float glyphWidth() {
+        import graphics : measureText2d;
+        auto cellSize = measureText2d(" ", Settings.font, Settings.fontSize, 1);
+        return cellSize.x;
+    }
 }

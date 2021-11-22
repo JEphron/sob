@@ -8,17 +8,17 @@ import std.encoding;
 import utils;
 
 struct Viewport {
-    int top;
-    int left;
-    int width;
-    int height;
+    float top;
+    float left;
+    float width;
+    float height;
     Document document;
 
-    const int bottom() {
+    const float bottom() {
         return top + height;
     }
 
-    const int right() {
+    const float right() {
         return left + width;
     }
 
@@ -28,6 +28,14 @@ struct Viewport {
 
     const int bottomRow() {
         return cast(int)ceil(bottom / Settings.lineHeight);
+    }
+
+    const int leftColumn() {
+        return cast(int)ceil(left / Settings.glyphWidth);
+    }
+
+    const int rightColumn() {
+        return cast(int)floor(right / Settings.glyphWidth);
     }
 
     void draw(Vector2 rootPosition) {

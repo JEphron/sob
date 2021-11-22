@@ -352,8 +352,8 @@ bool pointBetween(Point a, Point b, Point c) {
 class Highlighter {
     Interval[] intervals;
 
-    this(Tree tree, Query query) {
-        foreach(match; query.exec(tree.root_node).toList) {
+    this(Tree tree, Query* query) {
+        foreach(match; query.exec(tree.root_node)) {
             foreach(capture; match.captures) {
                 insert(Interval(capture.node.start_position, capture.node.end_position, capture.name));
             }
@@ -387,7 +387,6 @@ class Highlighter {
     }
 }
 
-
 class TreeRenderer : TreeVisitor {
     string source;
     Vector2 cellSize;
@@ -411,14 +410,8 @@ class TreeRenderer : TreeVisitor {
             auto endVec = Vector2(10 + endPoint.column * cellSize.x, 10 + endPoint.row * cellSize.y + cellSize.y);
 
             auto color = colorFromHSV(h%360, 1, 1);
-            /* auto dimensions = Vector2(cellSize.x * str.length, cellSize.y); */
+            drawRectangle(Vector2(startVec.x, startVec.y), Vector2(endVec.x - startVec.x, cellSize.y), color.withAlpha(0.5f));
 
-            drawRectangle(Vector2(startVec.x, startVec.y), Vector2(endVec.x - startVec.x, cellSize.y), color.withAlpha(0.2f));
-            /* if(pointInRectangle(getMousePosition(), rectFromTwoVectors(startVec, dimensions))) { */
-            /*     /1* drawRectangleLines(startVec, dimensions, Colors.WHITE); *1/ */
-            /* } */
-
-            /* drawMonoTextLine(str, startPoint, startVec, highlighter); */
             h += 1000;
         }
         return true;
@@ -437,7 +430,7 @@ void drawMonoTextLine(string str, Point point, Vector2 pos, Highlighter highligh
     Font font = Settings.font;
     auto fontSize = Settings.fontSize;
 
-    auto cellSize = measureText2d(" ", font, fontSize, 1);
+    auto glyphWidth = Settings.glyphWidth;
 
     auto row = point.row;
     auto column = point.column;
@@ -447,10 +440,12 @@ void drawMonoTextLine(string str, Point point, Vector2 pos, Highlighter highligh
             auto color = highlighter.getColorForPoint(Point(row, column));
             DrawTextCodepoint(font, codepoint, Vector2(textOffsetX, pos.y), fontSize, color);
         }
-        textOffsetX += cellSize.x;
+        textOffsetX += glyphWidth;
         column++;
     }
 }
+
+import models.viewport;
 
 class JSEditor {
     Parser parser;
@@ -458,15 +453,20 @@ class JSEditor {
     Query highlightingQuery;
     Tree tree;
     Highlighter highlighter;
-    string source;
+    Document document;
+    Viewport viewport;
+
+    Vector2 mouseDragStart;
+    Vector2 viewportDragStart;
 
     this(string source) {
-        this.source = source;
+        document = Document.fromString(source);
+        viewport = Viewport(0, 0, 400, 400, document);
         language = tree_sitter_javascript();
         parser = Parser(language);
         highlightingQuery = Query(language, readResourceAsString("queries/js/highlights.scm"));
         tree = parser.tree_from(source);
-        highlighter = new Highlighter(tree, highlightingQuery);
+        highlighter = new Highlighter(tree, &highlightingQuery);
     }
 
     static JSEditor fromFile(string filepath) {
@@ -476,15 +476,40 @@ class JSEditor {
     }
 
     void draw() {
-        tree.traverse(new TreeRenderer(source, highlighter));
+        import std.algorithm;
 
-        auto pos = Vector2(10, 10);
-        foreach(row, line; source.split('\n')) {
-            auto point = Point(row.to!uint, 0);
-            drawMonoTextLine(line, point, pos, highlighter);
-            pos.y += Settings.lineHeight;
+        if(mousePressed()) {
+            mouseDragStart = getMousePosition();
+            viewportDragStart = Vector2(viewport.left, viewport.top);
         }
+
+        if(mouseDown()) {
+            auto mouseDelta = getMousePosition() - mouseDragStart;
+            viewport.top = max(0, viewportDragStart.y + mouseDelta.y);
+            viewport.left = max(0, viewportDragStart.x + mouseDelta.x);
+        }
+
+        drawText(format("(%s,%s)", viewport.left, viewport.top), Vector2(0, 0), 24, Colors.WHITE);
+
+        auto root = Vector2(getMousePosition().x, getMousePosition().y);
+        viewport.draw(root);
+        auto rect = Rectangle(root.x, root.y, viewport.width, viewport.height);
+        withScissors(rect, {
+            auto pos = Vector2(root.x - viewport.left, root.y - viewport.top);
+            foreach(row, line; document.getViewport(viewport)) {
+                auto point = Point(row, viewport.leftColumn);
+                drawMonoTextLine(line, point, pos, highlighter);
+                pos.y += Settings.lineHeight;
+            }
+        });
     }
+}
+
+void withScissors(Rectangle scissor, scope void delegate() d) {
+    import raylib: BeginScissorMode, EndScissorMode;
+    BeginScissorMode(scissor.x.to!int, scissor.y.to!int, scissor.width.to!int, scissor.height.to!int);
+    d();
+    EndScissorMode();
 }
 
 string readResourceAsString(string path) {
@@ -507,7 +532,7 @@ void testJson() {
 void dumpQueryResults(Parser* parser, Query* query, string source) {
     writeln("source:", source);
     auto tree = parser.tree_from(source);
-    foreach(match; query.exec(tree.root_node).toList) {
+    foreach(match; query.exec(tree.root_node)) {
         foreach(capture; match.captures) {
             auto codeSlice = source[capture.node.start_byte..capture.node.end_byte];
             writeln("pattern(", match.pattern_index, "): ", capture.name, " - ", codeSlice);

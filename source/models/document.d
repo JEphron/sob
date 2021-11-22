@@ -20,29 +20,47 @@ struct ViewportIterator {
 
     int opApply(scope int delegate(int, string) dg) {
         int result = 0;
-        for(int row = viewport.topRow; row < viewport.bottomRow; row++) {
-            if(row >= document.lineCount) break;
-            result = dg(row, document.getLine(row));
-            if (result)
-                break;
+
+        foreach(row, line; document.lines) {
+            dg(row.to!int, line);
         }
+
+        /* for(int row = viewport.topRow; row < viewport.bottomRow - 1; row++) { */
+        /*     if(row >= document.lineCount) break; */
+        /*     auto line = document.getLine(row); */
+        /*     string subline; */
+        /*     if(viewport.leftColumn >= 0 && viewport.leftColumn < line.length) { */
+        /*         auto clampedRight = min(viewport.rightColumn, line.length); */
+        /*         subline = line[viewport.leftColumn..clampedRight]; */
+        /*     } else { */
+        /*         subline = ""; */
+        /*     } */
+        /*     result = dg(row, subline); */
+        /*     if (result) */
+        /*         break; */
+        /* } */
 
         return result;
     }
 }
 
 class Document {
-    private this(string filepath) {
+    const string filepath;
+    private string[] lines;
+
+    private this(string name, string contents) {
         this.filepath = filepath;
-        this.lines = std.file.readText(filepath).split('\n');
+        this.lines = contents.split('\n');
     }
 
     static Document open(string filepath) {
-        return new Document(filepath);
+        auto contents = std.file.readText(filepath);
+        return new Document(filepath, contents);
     }
 
-    const string filepath;
-    private string[] lines;
+    static Document fromString(string contents) {
+        return new Document("<unnamed>", contents);
+    }
 
     string name() {
         return baseName(filepath);

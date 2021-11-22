@@ -42,6 +42,11 @@ bool mousePressed() {
     return IsMouseButtonPressed(0);
 }
 
+bool rightMousePressed() {
+    import raylib: IsMouseButtonPressed;
+    return IsMouseButtonPressed(1);
+}
+
 bool mouseUp() {
     import raylib: IsMouseButtonUp;
     return IsMouseButtonUp(0);

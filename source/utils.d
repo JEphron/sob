@@ -196,3 +196,13 @@ float getGlyphWidth(dchar codepoint) {
 
     return cast(float)font.chars[index].advanceX * scaleFactor + spacing;
 }
+
+string resourcePath(string path) {
+    import std.path;
+    return buildNormalizedPath(dirName(__FILE_FULL_PATH__) ~ "/../res/" ~ path);
+}
+
+string readResourceAsString(string path) {
+    import std.file;
+    return resourcePath(path).readText();
+}

@@ -5,7 +5,7 @@ import raylib: Font;
 static class Settings {
     static int windowWidth = 1200;
     static int windowHeight = 1200;
-    static int fontSize = 20;
+    static int fontSize = 32;
     static int keyRepeatRateMs = 15;
     static int keyRepeatDelayMs = 20;
     static Font font;

@@ -118,6 +118,10 @@ class Document {
 
     void insertNewLine(int row, int column) {
         if(row < 0 || column < 0) return;
+        if(row >= lines.length) {
+            lines ~= "";
+            return;
+        }
         auto arr = lines[row].array;
         auto a1 = arr[0..column];
         auto a2 = arr[column..$];

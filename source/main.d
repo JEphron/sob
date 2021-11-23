@@ -12,7 +12,7 @@ import input;
 import utils;
 import keyboard;
 
-import models.editor;
+/* import models.editor; */
 import models.document;
 import models.cursor;
 import models.point;
@@ -33,7 +33,6 @@ class TextEditorState {
 }
 
 void draw(TextEditorState state) {
-    clearBackground(16, 16, 16);
     if(state.editor) {
         state.editor.draw();
     }
@@ -289,47 +288,28 @@ Font loadFont() {
 }
 
 
-void runStuff() {
-    import raylib: SetExitKey;
-    initWindow(Settings.windowWidth, Settings.windowHeight, ";_;");
-
-    Settings.font = loadFont();
-
-    auto state = new TextEditorState();
-    auto documentPath = resourcePath("sample.json");
-    state.editor = Editor.fromFilepath(documentPath);
-    state.keyContainer = registerKeyCommands(state);
-
-    setTargetFPS(60);
-    SetExitKey(KeyboardKey.KEY_NULL); // don't close on escape-key press
-
-    while(!windowShouldClose() && !state.shouldQuit) {
-        beginDrawing();
-        handleInput(state);
-        draw(state);
-        endDrawing();
-    }
-
-    closeWindow();
-}
-
 import d_tree_sitter : Language, Query, Parser, Tree, TreeVisitor, TreeCursor;
 
 extern(C) Language tree_sitter_json();
 extern(C) Language tree_sitter_javascript();
 
-
 void main(string[] args) {
+    import raylib: SetExitKey;
+
     initWindow(Settings.windowWidth, Settings.windowHeight, ";_;");
     Settings.font = loadFont();
     setTargetFPS(60);
+    SetExitKey(KeyboardKey.KEY_NULL); // don't close on escape-key press
 
-    auto editor = JSEditor.fromFile(resourcePath("jquery.js"));
+    auto state = new TextEditorState();
+    state.keyContainer = registerKeyCommands(state);
+    state.editor = JSEditor.fromFile(resourcePath("jquery.js"));
 
-    while(!windowShouldClose()) {
+    while(!windowShouldClose() && !state.shouldQuit) {
         clearBackground(Colors.BLACK);
         beginDrawing();
-        editor.draw();
+        handleInput(state);
+        draw(state);
         drawFPS();
         endDrawing();
     }
@@ -428,7 +408,22 @@ class Highlighter {
 
 import models.viewport;
 
-class JSEditor {
+class JSEditor : Editor {
+    this(Document document) {
+        auto language = tree_sitter_javascript();
+        super(document, language, readResourceAsString("queries/js/highlights.scm"));
+    }
+}
+
+class JSONEditor : Editor {
+    this(Document document) {
+        auto language = tree_sitter_json();
+        super(document, language, readResourceAsString("queries/json/highlights.scm"));
+    }
+}
+
+class Editor {
+    Cursor cursor;
     Parser parser;
     Language language;
     Query highlightingQuery;
@@ -436,6 +431,22 @@ class JSEditor {
     Highlighter highlighter;
     Document document;
     Viewport viewport;
+
+    this(Document document, Language language, string highlightQueryFilePath) {
+        this.document = document;
+        this.cursor = new Cursor(document);
+        viewport = Viewport(
+            0,
+            0,
+            400,
+            400,
+            document
+        );
+        parser = Parser(language);
+        highlightingQuery = Query(language, highlightQueryFilePath);
+        tree = parser.parse_to_tree(document.textContent);
+        highlighter = new Highlighter(tree, &highlightingQuery);
+    }
 
     Vector2 root = Vector2(20, 20);
 
@@ -446,26 +457,63 @@ class JSEditor {
     Vector2 mouseDragStart;
     Vector2 viewportDragStart;
 
-    this(Document document) {
-        this.document = document;
-        viewport = Viewport(
-            0,
-            0,
-            Settings.windowWidth - 80,
-            Settings.windowHeight - 40,
-            document
-        );
-        language = tree_sitter_javascript();
-        parser = Parser(language);
-        highlightingQuery = Query(language, readResourceAsString("queries/js/highlights.scm"));
-        tree = parser.tree_from(document.textContent);
-        highlighter = new Highlighter(tree, &highlightingQuery);
-    }
-
     static JSEditor fromFile(string filepath) {
         import std.file;
         auto document = Document.open(filepath);
         return new JSEditor(document);
+    }
+
+    void insertCharacter(dchar c) {
+        document.insertCharacter(cursor.row, cursor.column, c);
+        cursor.moveHorizontally(1);
+    }
+
+    void insertNewLine() {
+        document.insertNewLine(cursor.row, cursor.column);
+        cursor.moveVertically(1);
+        cursor.moveToBeginningOfLine();
+    }
+
+    void insertNewLineAbove() {
+        document.insertNewLine(cursor.row, 0);
+        cursor.moveToBeginningOfLine();
+    }
+
+    void insertNewLineBelow() {
+        document.insertNewLine(cursor.row + 1, 0);
+        cursor.moveVertically(1);
+        cursor.moveToBeginningOfLine();
+    }
+
+    void deleteBeforeCursor() {
+        if (cursor.column == 0 && cursor.row > 0) {
+            auto newColumn = document.lineLength(cursor.row-1);
+            document.joinLinesUpwards(cursor.row);
+            cursor.moveVertically(-1);
+            cursor.setColumn(newColumn + 1);
+        } else{
+            document.deleteCharacter(cursor.row, cursor.column - 1);
+        }
+    }
+
+    void scrollToContain(Cursor cursor) {
+        int deltaToRows(int delta) {
+            return cast(int)(delta * Settings.lineHeight);
+        }
+
+        int deltaToColumns(int delta) {
+            return cast(int)(delta * Settings.glyphWidth);
+        }
+
+        if(cursor.row > viewport.bottomRow - 1) {
+            auto delta = cursor.row - viewport.bottomRow + 1;
+            viewport.top += deltaToRows(delta);
+        }
+
+        if(cursor.row < viewport.topRow) {
+            auto delta = viewport.topRow - cursor.row;
+            viewport.top -= deltaToRows(delta);
+        }
     }
 
     void draw() {
@@ -491,6 +539,7 @@ class JSEditor {
         );
 
         drawBackground(rect);
+
         withScissors(rect, {
             drawCodepointsInViewport();
             drawLineNums();
@@ -573,24 +622,32 @@ class JSEditor {
 
         auto scrollX = -viewport.left;
         auto scrollY = -viewport.top;
+        auto cursorColor = Colors.MAROON;
+
         foreach(point, codepoint; document.getCodepointsInViewport(viewport)) {
+            auto pos = Vector2(
+                point.column * glyphWidth + root.x + gutterWidth() + scrollX,
+                point.row * lineHeight + root.y + scrollY
+            );
             if(!isWhite(codepoint)) {
                 auto color = highlighter.getColorForPoint(point);
-                auto pos = Vector2(
-                    point.column * glyphWidth + root.x + gutterWidth() + scrollX,
-                    point.row * lineHeight + root.y + scrollY
-                );
                 DrawTextCodepoint(font, codepoint, pos, fontSize, color);
             }
+            if (cursor.row == point.row && cursor.column == point.column) {
+                auto rect = Rectangle(pos.x, pos.y, glyphWidth, lineHeight);
+                cursor.draw(codepoint, rect, cursorColor);
+            }
+        }
+
+        if(cursor.isAtEndOfLine) {
+            auto pos = Vector2(
+                cursor.column * glyphWidth + root.x + gutterWidth() + scrollX,
+                cursor.row * lineHeight + root.y + scrollY
+            );
+            auto rect = Rectangle(pos.x, pos.y, glyphWidth, lineHeight);
+            cursor.draw(' ', rect, cursorColor);
         }
     }
-}
-
-void withScissors(Rectangle scissor, scope void delegate() d) {
-    import raylib: BeginScissorMode, EndScissorMode;
-    BeginScissorMode(scissor.x.to!int, scissor.y.to!int, scissor.width.to!int, scissor.height.to!int);
-    d();
-    EndScissorMode();
 }
 
 string readResourceAsString(string path) {
@@ -612,7 +669,7 @@ void testJson() {
 
 void dumpQueryResults(Parser* parser, Query* query, string source) {
     writeln("source:", source);
-    auto tree = parser.tree_from(source);
+    auto tree = parser.parse_to_tree(source);
     foreach(match; query.exec(tree.root_node)) {
         foreach(capture; match.captures) {
             auto codeSlice = source[capture.node.start_byte..capture.node.end_byte];

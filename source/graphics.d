@@ -295,3 +295,10 @@ Font loadFont(string fileName) {
     import raylib: LoadFont;
     return LoadFont(fileName.toStringz);
 }
+
+void withScissors(Rectangle scissor, scope void delegate() d) {
+    import raylib: BeginScissorMode, EndScissorMode;
+    BeginScissorMode(scissor.x.to!int, scissor.y.to!int, scissor.width.to!int, scissor.height.to!int);
+    d();
+    EndScissorMode();
+}

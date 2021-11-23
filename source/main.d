@@ -48,6 +48,14 @@ class NewlineCommand : KeyCommand {
     }
 }
 
+class InsertTabCommand : KeyCommand {
+    override void run(TextEditorState state) {
+        for(int i = 0; i < 4; i++)
+            state.editor.insertCharacter(' ');
+        state.editor.scrollToContain(state.editor.cursor);
+    }
+}
+
 class QuitCommand : KeyCommand {
     override void run(TextEditorState state) {
         state.shouldQuit = true;
@@ -228,6 +236,7 @@ KeyMapContainer registerKeyCommands(TextEditorState state) {
             ]));
         map.add(KeyBind(KeyboardKey.KEY_BACKSPACE), new BackspaceCommand());
         map.add(KeyBind(KeyboardKey.KEY_ENTER), new NewlineCommand());
+        map.add(KeyBind(KeyboardKey.KEY_TAB), new InsertTabCommand());
         map.setDefault((event) {
             import std.ascii;
 

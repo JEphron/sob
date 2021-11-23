@@ -433,7 +433,7 @@ class JSEditor {
     Document document;
     Viewport viewport;
 
-    Vector2 root = Vector2(100,100);
+    Vector2 root = Vector2(20, 20);
 
     Color backgroundColor = Color(8, 8, 8, 255);
     Color frameColor = Color(0, 128, 200, 255);
@@ -444,7 +444,13 @@ class JSEditor {
 
     this(Document document) {
         this.document = document;
-        viewport = Viewport(0, 0, 400, 400, document);
+        viewport = Viewport(
+            0,
+            0,
+            Settings.windowWidth - 80,
+            Settings.windowHeight - 40,
+            document
+        );
         language = tree_sitter_javascript();
         parser = Parser(language);
         highlightingQuery = Query(language, readResourceAsString("queries/js/highlights.scm"));
@@ -498,11 +504,14 @@ class JSEditor {
 
     float gutterWidth() {
         if(_cachedGutterWidth) return _cachedGutterWidth;
-        _cachedGutterWidth= measureText2d(
-                document.lineCount.to!string,
-                Settings.font,
-                Settings.fontSize,
-                1).x + gutterPad * 2;
+
+        auto strWidth = measureText2d(
+            document.lineCount.to!string,
+            Settings.font,
+            Settings.fontSize,
+            1
+        );
+        _cachedGutterWidth = strWidth.x + gutterPad * 2;
         return _cachedGutterWidth;
     }
 

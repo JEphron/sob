@@ -38,11 +38,6 @@ struct Viewport {
         return cast(int)floor(right / Settings.glyphWidth);
     }
 
-    void draw(Vector2 rootPosition) {
-        import graphics;
-        drawRectangleLines(Rectangle(rootPosition.x, rootPosition.y, width, height), Colors.RED);
-    }
-
     invariant {
         assert(top >= 0, "top must be >= 0");
         assert(left >= 0, "left must be >= 0");

@@ -205,9 +205,9 @@ void drawRectangle(Vector2 start_corner, Vector2 dimensions, Color color) {
     DrawRectangleV(start_corner, dimensions, color);
 }
 
-void drawRectangle(int x, int y, int width, int height, Color color) {
+void drawRectangle(float x, float y, float width, float height, Color color) {
     import raylib: DrawRectangle;
-    DrawRectangle(x, y, width, height, color);
+    DrawRectangle(x.to!int, y.to!int, width.to!int, height.to!int, color);
 }
 
 void drawRectangle(Vector2 start_corner, int width, int height, Color color) {
@@ -274,6 +274,11 @@ Vector2 measureText2d(string str, Font font, float fontSize, float spacing) {
 void drawCenteredText(string text, Vector2 position, int fontSize, Color color) {
     auto width = measureText(text, fontSize);
     drawText(text, position - Vector2(width/2, 0), fontSize, color);
+}
+
+void drawRightAlignedText(string text, Font font, Vector2 position, int fontSize, Color color) {
+    auto width = measureText2d(text, font, fontSize, 1).x;
+    drawText(text, font, position - Vector2(width, 0), fontSize, color);
 }
 
 Color withAlpha(Color c, float a) {

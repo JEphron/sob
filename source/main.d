@@ -491,17 +491,36 @@ class JSEditor {
 
         drawText(format("(%s,%s)", viewport.left, viewport.top), Vector2(0, 0), 24, Colors.WHITE);
 
-        auto root = Vector2(getMousePosition().x, getMousePosition().y);
-        viewport.draw(root);
-        auto rect = Rectangle(root.x, root.y, viewport.width, viewport.height);
-        withScissors(rect, {
-            auto pos = Vector2(root.x - viewport.left, root.y - viewport.top);
-            foreach(row, line; document.getViewport(viewport)) {
-                auto point = Point(row, viewport.leftColumn);
-                drawMonoTextLine(line, point, pos, highlighter);
-                pos.y += Settings.lineHeight;
+        auto root = Vector2(100,100);
+
+        auto gutterPad = 5;
+        auto gutterWidth = measureText2d(document.lineCount.to!string, Settings.font, Settings.fontSize, 1).x + gutterPad * 2;
+        auto rect = Rectangle(root.x, root.y, viewport.width + gutterWidth, viewport.height);
+
+        /* withScissors(rect, { */
+            {
+                auto pos = Vector2(root.x + gutterWidth - viewport.left, root.y - viewport.top);
+                foreach(row, line; document.getViewport(viewport)) {
+                    auto point = Point(row, 0);
+                    drawMonoTextLine(line, point, pos, highlighter);
+                    pos.y += Settings.lineHeight;
+                }
             }
-        });
+
+            // linenums
+            {
+                auto pos = Vector2(root.x + gutterWidth - viewport.left, root.y - viewport.top);
+                drawRectangle(root.x, root.y, gutterWidth, viewport.height, Colors.BLACK);
+                drawLine(root.x + gutterWidth, root.y, root.x + gutterWidth, root.y + viewport.height, Colors.RED);
+                foreach(row, line; document.getViewport(viewport)) {
+                    auto lineNum = (row + 1).to!string;
+                    drawRightAlignedText(lineNum, Settings.font, Vector2(root.x + gutterWidth - gutterPad, pos.y), Settings.fontSize, Colors.GRAY);
+                    pos.y += Settings.lineHeight;
+                }
+            }
+        /* }); */
+
+        drawRectangleLines(Rectangle(root.x, root.y, viewport.width + gutterWidth, viewport.height), Colors.RED);
     }
 }
 

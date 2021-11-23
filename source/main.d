@@ -287,7 +287,6 @@ Font loadFont() {
     return LoadFontEx(fontPath.toStringz, Settings.fontSize, null, 250);
 }
 
-
 import d_tree_sitter : Language, Query, Parser, Tree, TreeVisitor, TreeCursor;
 
 extern(C) Language tree_sitter_json();
@@ -303,7 +302,7 @@ void main(string[] args) {
 
     auto state = new TextEditorState();
     state.keyContainer = registerKeyCommands(state);
-    state.editor = JSEditor.fromFile(resourcePath("jquery.js"));
+    state.editor = JSEditor.fromFile(resourcePath("test.js"));
 
     while(!windowShouldClose() && !state.shouldQuit) {
         clearBackground(Colors.BLACK);
@@ -340,13 +339,6 @@ struct Interval {
     invariant {
         assert(this.start <= this.end);
     }
-}
-
-bool pointBetween(Point a, Point b, Point c) {
-    if(a.row == b.row && a.row == c.row) return a.column >= b.column && a.column < c.column;
-    if(a.row >= b.row && a.row < c.row) return true;
-    if(a.row == c.row) return a.column < c.column;
-    return false;
 }
 
 class Highlighter {
@@ -438,8 +430,8 @@ class Editor {
         viewport = Viewport(
             0,
             0,
-            400,
-            400,
+            800,
+            800,
             document
         );
         parser = Parser(language);
@@ -463,26 +455,35 @@ class Editor {
         return new JSEditor(document);
     }
 
+    void reparseDocument() {
+        tree = parser.parse_to_tree(document.textContent);
+        highlighter = new Highlighter(tree, &highlightingQuery);
+    }
+
     void insertCharacter(dchar c) {
         document.insertCharacter(cursor.row, cursor.column, c);
         cursor.moveHorizontally(1);
+        reparseDocument();
     }
 
     void insertNewLine() {
         document.insertNewLine(cursor.row, cursor.column);
         cursor.moveVertically(1);
         cursor.moveToBeginningOfLine();
+        reparseDocument();
     }
 
     void insertNewLineAbove() {
         document.insertNewLine(cursor.row, 0);
         cursor.moveToBeginningOfLine();
+        reparseDocument();
     }
 
     void insertNewLineBelow() {
         document.insertNewLine(cursor.row + 1, 0);
         cursor.moveVertically(1);
         cursor.moveToBeginningOfLine();
+        reparseDocument();
     }
 
     void deleteBeforeCursor() {
@@ -494,6 +495,7 @@ class Editor {
         } else{
             document.deleteCharacter(cursor.row, cursor.column - 1);
         }
+        reparseDocument();
     }
 
     void scrollToContain(Cursor cursor) {
@@ -653,27 +655,4 @@ class Editor {
 string readResourceAsString(string path) {
     import std.file;
     return resourcePath(path).readText();
-}
-
-void testJson() {
-    import d_tree_sitter : Parser;
-    auto jsonLanguage = tree_sitter_json();
-    auto parser = Parser(jsonLanguage);
-
-    auto query = Query(jsonLanguage, readResourceAsString("queries/json/highlights.scm"));
-
-    auto jsonSource = readResourceAsString("sample.json");
-    dumpQueryResults(&parser, &query, jsonSource);
-}
-
-
-void dumpQueryResults(Parser* parser, Query* query, string source) {
-    writeln("source:", source);
-    auto tree = parser.parse_to_tree(source);
-    foreach(match; query.exec(tree.root_node)) {
-        foreach(capture; match.captures) {
-            auto codeSlice = source[capture.node.start_byte..capture.node.end_byte];
-            writeln("pattern(", match.pattern_index, "): ", capture.name, " - ", codeSlice);
-        }
-    }
 }

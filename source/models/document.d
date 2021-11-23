@@ -8,13 +8,13 @@ import std.stdio;
 import std.string;
 
 import settings;
-import models.cursor;
 import std.array;
 import std.conv;
-import models.viewport;
-import utils;
-import d_tree_sitter : Point;
 import std.encoding : codePoints;
+import models.cursor;
+import models.viewport;
+import models.point;
+import utils;
 
 struct ViewportCodePointIterator {
     const Viewport viewport;

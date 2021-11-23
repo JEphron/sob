@@ -3,6 +3,9 @@ module main;
 import std.stdio;
 import std.string;
 import std.file;
+import std.conv;
+
+import intervaltree.avltree;
 
 import graphics;
 import input;
@@ -12,6 +15,7 @@ import keyboard;
 import models.editor;
 import models.document;
 import models.cursor;
+import models.point;
 import settings;
 
 
@@ -227,7 +231,6 @@ KeyMapContainer registerKeyCommands(TextEditorState state) {
         map.add(KeyBind(KeyboardKey.KEY_ENTER), new NewlineCommand());
         map.setDefault((event) {
             import std.ascii;
-            import std.conv;
 
             if(!event.charValue) return;
 
@@ -310,7 +313,7 @@ void runStuff() {
     closeWindow();
 }
 
-import d_tree_sitter : Language, Query, Parser, Tree, TreeVisitor, TreeCursor, Point;
+import d_tree_sitter : Language, Query, Parser, Tree, TreeVisitor, TreeCursor;
 
 extern(C) Language tree_sitter_json();
 extern(C) Language tree_sitter_javascript();
@@ -333,13 +336,26 @@ void main(string[] args) {
     closeWindow();
 }
 
-import std.conv;
-
 
 struct Interval {
     Point start;
     Point end;
-    string name;
+
+    @safe @nogc nothrow int opCmp(ref const Interval other) const {
+        if(start < other.start) return -1;
+		if(start > other.start) return 1;
+		if(start == other.start && end < other.end) return -1;
+		if(start == other.start && end > other.end) return 1;
+		return 0;
+    }
+
+    @safe @nogc nothrow int opCmp(const Point other) const {
+        return start.opCmp(other);
+    }
+
+    invariant {
+        assert(this.start <= this.end);
+    }
 }
 
 bool pointBetween(Point a, Point b, Point c) {
@@ -351,97 +367,58 @@ bool pointBetween(Point a, Point b, Point c) {
 
 class Highlighter {
     Interval[] intervals;
+    IntervalTree!Interval intervalTree;
+    Color[string] colorMap;
+    string[Interval] intervalToName;
 
     this(Tree tree, Query* query) {
+        colorMap = [
+            "comment": Colors.GRAY,
+            "keyword": Colors.ORANGE,
+            "constant": Colors.GREEN,
+            "property": Colors.PINK,
+            "function": Colors.BLUE,
+            "string": Colors.YELLOW,
+            "number": Colors.PURPLE,
+            "operator": Colors.RED
+        ];
+
         foreach(match; query.exec(tree.root_node)) {
             foreach(capture; match.captures) {
-                insert(Interval(capture.node.start_position, capture.node.end_position, capture.name));
+                if(capture.name !in colorMap) continue;
+                auto tsStart = capture.node.start_position;
+                auto startPoint = Point(tsStart.row, tsStart.column);
+                auto tsEnd = capture.node.end_position;
+                auto endPoint = Point(tsEnd.row, tsEnd.column);
+                insert(Interval(startPoint, endPoint), capture.name);
             }
         }
     }
 
-    void insert(Interval interval) {
-        intervals ~= interval;
+    void insert(Interval interval, string name) {
+        uint d;
+        intervalTree.insert(interval, d);
+        intervalToName[interval] = name;
     }
 
     string[] find(Point point) {
         import std.algorithm;
         import std.array;
-        // todo: investigate interval trees
-        return intervals.filter!(it => pointBetween(point, it.start, it.end)).map!(it => it.name).array;
+        auto target = Interval(point, Point(point.row, point.column + 1));
+        auto result = new string[0];
+        foreach(node; intervalTree.findOverlapsWith(target)) {
+            result ~= intervalToName[node.interval];
+        }
+        return result;
     }
 
     Color getColorForPoint(Point point) {
         auto categories = find(point);
         foreach(category; categories) {
-            if(category == "comment") return Colors.GRAY;
-            if(category == "keyword") return Colors.ORANGE;
-            if(category == "constant") return Colors.GREEN;
-            if(category == "property") return Colors.PINK;
-            if(category == "function") return Colors.BLUE;
-            if(category == "string") return Colors.YELLOW;
-            if(category == "number") return Colors.PURPLE;
-            if(category == "operator") return Colors.RED;
+            if(auto color = category in colorMap)
+                return *color;
         }
         return Colors.WHITE;
-    }
-}
-
-class TreeRenderer : TreeVisitor {
-    string source;
-    Vector2 cellSize;
-    int h = 0;
-    Highlighter highlighter;
-
-    this(string source, Highlighter highlighter) {
-        cellSize = measureText2d(" ", Settings.font, Settings.fontSize, 1);
-        this.highlighter = highlighter;
-        this.source = source;
-    }
-
-    extern(C) bool enter_node(TreeCursor* cursor) @trusted {
-        auto node = cursor.node();
-        if(node.child_count == 0) {
-            /* auto str = source[node.start_byte..node.end_byte]; */
-            auto startPoint = node.start_position();
-            auto startVec = Vector2(10 + startPoint.column * cellSize.x, 10 + startPoint.row * cellSize.y);
-
-            auto endPoint = node.end_position();
-            auto endVec = Vector2(10 + endPoint.column * cellSize.x, 10 + endPoint.row * cellSize.y + cellSize.y);
-
-            auto color = colorFromHSV(h%360, 1, 1);
-            drawRectangle(Vector2(startVec.x, startVec.y), Vector2(endVec.x - startVec.x, cellSize.y), color.withAlpha(0.5f));
-
-            h += 1000;
-        }
-        return true;
-    }
-
-    extern(C) void leave_node(TreeCursor* cursor) {
-    }
-}
-
-void drawMonoTextLine(string str, Point point, Vector2 pos, Highlighter highlighter) {
-    import std.encoding;
-    import std.conv;
-    import std.ascii;
-    import raylib : DrawTextCodepoint, GetFontDefault;
-
-    Font font = Settings.font;
-    auto fontSize = Settings.fontSize;
-
-    auto glyphWidth = Settings.glyphWidth;
-
-    auto row = point.row;
-    auto column = point.column;
-    auto textOffsetX = pos.x;
-    foreach(codepoint; str.codePoints) {
-        if(!isWhite(codepoint)) {
-            auto color = highlighter.getColorForPoint(Point(row, column));
-            DrawTextCodepoint(font, codepoint, Vector2(textOffsetX, pos.y), fontSize, color);
-        }
-        textOffsetX += glyphWidth;
-        column++;
     }
 }
 

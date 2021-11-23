@@ -23,8 +23,7 @@
 	"description": "My angry text editor",
 	"lflags": [
 		"/home/jephron/dev/personal/sob/source/tree_sitter_grammars/json_parser.so",
-		"/home/jephron/dev/personal/sob/source/tree_sitter_grammars/js_parser.so",
-		"/home/jephron/dev/personal/sob/source/tree_sitter_grammars/libtree_sitter_highlight.a"
+		"/home/jephron/dev/personal/sob/source/tree_sitter_grammars/js_parser.so"
 	],
 	"libs": [
 		"raylib"

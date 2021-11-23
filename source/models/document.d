@@ -13,6 +13,30 @@ import std.array;
 import std.conv;
 import models.viewport;
 import utils;
+import d_tree_sitter : Point;
+import std.encoding : codePoints;
+
+struct ViewportCodePointIterator {
+    const Viewport viewport;
+    const Document document;
+
+    int opApply(scope int delegate(Point, dchar) dg) {
+        int result = 0;
+
+        foreach(row; viewport.topRow..viewport.bottomRow) {
+            if(row >= document.lineCount) break;
+            auto line = document.lines[row];
+            foreach(column, codePoint; line.codePoints) {
+                if(column < viewport.leftColumn) continue;
+                if(column > viewport.rightColumn) break;
+                result = dg(Point(row.to!int, column.to!int), codePoint);
+                if(result) break;
+            }
+        }
+
+        return result;
+    }
+}
 
 struct ViewportIterator {
     const Viewport viewport;
@@ -25,30 +49,17 @@ struct ViewportIterator {
             dg(row.to!int, line);
         }
 
-        /* for(int row = viewport.topRow; row < viewport.bottomRow - 1; row++) { */
-        /*     if(row >= document.lineCount) break; */
-        /*     auto line = document.getLine(row); */
-        /*     string subline; */
-        /*     if(viewport.leftColumn >= 0 && viewport.leftColumn < line.length) { */
-        /*         auto clampedRight = min(viewport.rightColumn, line.length); */
-        /*         subline = line[viewport.leftColumn..clampedRight]; */
-        /*     } else { */
-        /*         subline = ""; */
-        /*     } */
-        /*     result = dg(row, subline); */
-        /*     if (result) */
-        /*         break; */
-        /* } */
 
         return result;
     }
 }
 
+
 class Document {
     const string filepath;
     private string[] lines;
 
-    private this(string name, string contents) {
+    private this(string filepath, string contents) {
         this.filepath = filepath;
         this.lines = contents.split('\n');
     }
@@ -59,7 +70,11 @@ class Document {
     }
 
     static Document fromString(string contents) {
-        return new Document("<unnamed>", contents);
+        return new Document("", contents);
+    }
+
+    string textContent() {
+        return lines.join('\n');
     }
 
     string name() {
@@ -77,6 +92,10 @@ class Document {
 
     const ViewportIterator getViewport(Viewport viewport) {
         return ViewportIterator(viewport, this);
+    }
+
+    const ViewportCodePointIterator getCodepointsInViewport(Viewport viewport) {
+        return ViewportCodePointIterator(viewport, this);
     }
 
     const string getLine(int row) {

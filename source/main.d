@@ -456,28 +456,35 @@ class JSEditor {
     Document document;
     Viewport viewport;
 
+    Vector2 root = Vector2(100,100);
+
+    Color backgroundColor = Color(8, 8, 8, 255);
+    Color frameColor = Color(0, 128, 200, 255);
+    float gutterPad = 5;
+
     Vector2 mouseDragStart;
     Vector2 viewportDragStart;
 
-    this(string source) {
-        document = Document.fromString(source);
+    this(Document document) {
+        this.document = document;
         viewport = Viewport(0, 0, 400, 400, document);
         language = tree_sitter_javascript();
         parser = Parser(language);
         highlightingQuery = Query(language, readResourceAsString("queries/js/highlights.scm"));
-        tree = parser.tree_from(source);
+        tree = parser.tree_from(document.textContent);
         highlighter = new Highlighter(tree, &highlightingQuery);
     }
 
     static JSEditor fromFile(string filepath) {
         import std.file;
-        auto source = filepath.readText();
-        return new JSEditor(source);
+        auto document = Document.open(filepath);
+        return new JSEditor(document);
     }
 
     void draw() {
-        import std.algorithm;
+        import std.algorithm: min, max;
 
+        clearCachedGutterWidth();
         if(mousePressed()) {
             mouseDragStart = getMousePosition();
             viewportDragStart = Vector2(viewport.left, viewport.top);
@@ -489,38 +496,103 @@ class JSEditor {
             viewport.left = max(0, viewportDragStart.x + mouseDelta.x);
         }
 
-        drawText(format("(%s,%s)", viewport.left, viewport.top), Vector2(0, 0), 24, Colors.WHITE);
+        auto rect = Rectangle(
+            root.x,
+            root.y,
+            viewport.width + gutterWidth(),
+            viewport.height
+        );
 
-        auto root = Vector2(100,100);
+        drawBackground(rect);
+        withScissors(rect, {
+            drawCodepointsInViewport();
+            drawLineNums();
+        });
 
-        auto gutterPad = 5;
-        auto gutterWidth = measureText2d(document.lineCount.to!string, Settings.font, Settings.fontSize, 1).x + gutterPad * 2;
-        auto rect = Rectangle(root.x, root.y, viewport.width + gutterWidth, viewport.height);
+        drawFrame(rect);
 
-        /* withScissors(rect, { */
-            {
-                auto pos = Vector2(root.x + gutterWidth - viewport.left, root.y - viewport.top);
-                foreach(row, line; document.getViewport(viewport)) {
-                    auto point = Point(row, 0);
-                    drawMonoTextLine(line, point, pos, highlighter);
-                    pos.y += Settings.lineHeight;
-                }
+    }
+
+    float _cachedGutterWidth = 0;
+
+    void clearCachedGutterWidth() {
+        _cachedGutterWidth = 0;
+    }
+
+    float gutterWidth() {
+        if(_cachedGutterWidth) return _cachedGutterWidth;
+        _cachedGutterWidth= measureText2d(
+                document.lineCount.to!string,
+                Settings.font,
+                Settings.fontSize,
+                1).x + gutterPad * 2;
+        return _cachedGutterWidth;
+    }
+
+    void drawBackground(Rectangle rect) {
+        drawRectangle(rect, backgroundColor);
+    }
+
+    void drawFrame(Rectangle rect) {
+        auto frameThickness = 8;
+
+        drawRectangleLines(rect, frameColor);
+
+        drawRectangleLines(
+            Rectangle(
+                rect.x - frameThickness,
+                rect.y - Settings.lineHeight,
+                rect.width + frameThickness * 2,
+                rect.height + Settings.lineHeight + frameThickness
+            ),
+            frameColor.fade(0.4f)
+        );
+
+        drawText(
+            document.name,
+            Settings.font,
+            Vector2(rect.x, rect.y - Settings.lineHeight),
+            Settings.fontSize,
+            frameColor
+        );
+    }
+
+    void drawLineNums() {
+        auto lineHeight = Settings.lineHeight;
+        auto gutterEdgeX = root.x + gutterWidth();
+        auto scrollY = -viewport.top;
+
+        drawRectangle(root.x, root.y, gutterWidth(), viewport.height, Colors.BLACK);
+        drawLine(gutterEdgeX, root.y, gutterEdgeX, root.y + viewport.height, frameColor);
+
+        foreach(row; viewport.topRow..viewport.bottomRow) {
+            auto lineNum = (row + 1).to!string;
+            auto textPos = Vector2(gutterEdgeX - gutterPad, row * lineHeight + root.y + scrollY);
+            drawRightAlignedText(lineNum, Settings.font, textPos, Settings.fontSize, Colors.GRAY);
+        }
+    }
+
+    void drawCodepointsInViewport() {
+        import std.ascii : isWhite;
+        import raylib : DrawTextCodepoint;
+
+        Font font = Settings.font;
+        auto fontSize = Settings.fontSize;
+        auto lineHeight = Settings.lineHeight;
+        auto glyphWidth = Settings.glyphWidth;
+
+        auto scrollX = -viewport.left;
+        auto scrollY = -viewport.top;
+        foreach(point, codepoint; document.getCodepointsInViewport(viewport)) {
+            if(!isWhite(codepoint)) {
+                auto color = highlighter.getColorForPoint(point);
+                auto pos = Vector2(
+                    point.column * glyphWidth + root.x + gutterWidth() + scrollX,
+                    point.row * lineHeight + root.y + scrollY
+                );
+                DrawTextCodepoint(font, codepoint, pos, fontSize, color);
             }
-
-            // linenums
-            {
-                auto pos = Vector2(root.x + gutterWidth - viewport.left, root.y - viewport.top);
-                drawRectangle(root.x, root.y, gutterWidth, viewport.height, Colors.BLACK);
-                drawLine(root.x + gutterWidth, root.y, root.x + gutterWidth, root.y + viewport.height, Colors.RED);
-                foreach(row, line; document.getViewport(viewport)) {
-                    auto lineNum = (row + 1).to!string;
-                    drawRightAlignedText(lineNum, Settings.font, Vector2(root.x + gutterWidth - gutterPad, pos.y), Settings.fontSize, Colors.GRAY);
-                    pos.y += Settings.lineHeight;
-                }
-            }
-        /* }); */
-
-        drawRectangleLines(Rectangle(root.x, root.y, viewport.width + gutterWidth, viewport.height), Colors.RED);
+        }
     }
 }
 

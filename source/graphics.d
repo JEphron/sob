@@ -286,6 +286,11 @@ Color withAlpha(Color c, float a) {
     return ColorAlpha(c, a);
 }
 
+Color fade(Color c, float a) {
+    import raylib: Fade;
+    return Fade(c, a);
+}
+
 Font loadFont(string fileName) {
     import raylib: LoadFont;
     return LoadFont(fileName.toStringz);

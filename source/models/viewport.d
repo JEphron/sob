@@ -31,7 +31,7 @@ struct Viewport {
     }
 
     const int leftColumn() {
-        return cast(int)ceil(left / Settings.glyphWidth);
+        return cast(int)floor(left / Settings.glyphWidth);
     }
 
     const int rightColumn() {

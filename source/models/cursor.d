@@ -27,7 +27,6 @@ class Cursor {
 
     int column() {
         auto lineLen = document.lineLength(row);
-        import std.stdio;
         if (lineLen == 0) return 0;
         return clamp(_column, 0, lineLen);
     }
@@ -47,6 +46,10 @@ class Cursor {
             _column = column();
         _column += dx;
         if(_column < 0) _column = 0;
+    }
+
+    void moveToEndOfLine() {
+        _column = document.lineLength(row);
     }
 
     void moveToBeginningOfLine() {

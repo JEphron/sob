@@ -105,6 +105,18 @@ class BackspaceCommand : KeyCommand {
     }
 }
 
+class MoveCursorToEndOfLineCommand : KeyCommand {
+    override void run(TextEditorState state) {
+        state.editor.cursor.moveToEndOfLine();
+    }
+}
+
+class MoveCursorToBeginningOfLineCommand : KeyCommand {
+    override void run(TextEditorState state) {
+        state.editor.cursor.moveToBeginningOfLine();
+    }
+}
+
 class ChainedCommand : KeyCommand {
     KeyCommand[] commands;
 
@@ -268,6 +280,18 @@ KeyMapContainer registerKeyCommands(TextEditorState state) {
         map.add(KeyBind('a'),
             new ChainedCommand([
                 new MoveCursorKeyCommand(1, 0),
+                new EnterModeCommand(CursorMode.INSERT)
+            ])
+        );
+        map.add(KeyBind('A'),
+            new ChainedCommand([
+                new MoveCursorToEndOfLineCommand(),
+                new EnterModeCommand(CursorMode.INSERT)
+            ])
+        );
+        map.add(KeyBind('I'),
+            new ChainedCommand([
+                new MoveCursorToBeginningOfLineCommand(),
                 new EnterModeCommand(CursorMode.INSERT)
             ])
         );

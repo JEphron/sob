@@ -324,18 +324,22 @@ void main(string[] args) {
     Settings.font = loadFont();
     setTargetFPS(60);
 
-    auto editor = JSEditor.fromFile(resourcePath("smalljq.js"));
+    auto editor = JSEditor.fromFile(resourcePath("jquery.js"));
 
     while(!windowShouldClose()) {
         clearBackground(Colors.BLACK);
         beginDrawing();
         editor.draw();
+        drawFPS();
         endDrawing();
     }
 
     closeWindow();
 }
 
+void drawFPS() {
+    drawText(getFPS().to!string, Vector2(0, 0), 10, Colors.WHITE);
+}
 
 struct Interval {
     Point start;

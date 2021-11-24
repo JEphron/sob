@@ -40,6 +40,10 @@ class Cursor {
         _row = clamp(_row + dy, 0, document.lineCount - 1);
     }
 
+    void moveToLine(int line) {
+        _row = clamp(line, 0, document.lineCount - 1);
+    }
+
     void moveHorizontally(int dx) {
         if(dx == 0) return;
         if(_column > column())

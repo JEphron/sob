@@ -21,6 +21,7 @@ class TextEditorState {
     Keyboard keyboard;
     KeyMapContainer keyContainer;
     Font font;
+    CommandPalette commandPalette;
     int fontSize = 30;
     bool shouldQuit;
 
@@ -114,6 +115,20 @@ class MoveCursorToBeginningOfLineCommand : KeyCommand {
     }
 }
 
+class MoveCursorToEndOfDocumentCommand : KeyCommand {
+    override void run(TextEditorState state) {
+        state.editor.cursor.moveToLine(state.editor.document.lineCount-1);
+        state.editor.scrollToContain(state.editor.cursor);
+    }
+}
+
+class MoveCursorToBeginningOfDocumentCommand : KeyCommand {
+    override void run(TextEditorState state) {
+        state.editor.cursor.moveToLine(0);
+        state.editor.scrollToContain(state.editor.cursor);
+    }
+}
+
 class ChainedCommand : KeyCommand {
     KeyCommand[] commands;
 
@@ -167,6 +182,44 @@ struct KeyBind {
     bool hasModifier(Modifier mod) {
         return mod1 == mod || mod2 == mod;
     }
+
+    bool match(KeyEvent event) {
+        if(event.action == KeyAction.RELEASE) return false;
+
+        if(charValue) {
+            if(!event.charValue) return false;
+            if(charValue != event.charValue) return false;
+        }
+
+        if(key) {
+            if(!event.key) return false;
+            if(key != event.key) return false;
+        }
+
+        if(mod1 && !event.hasModifier(mod1)) return false;
+        if(mod2 && !event.hasModifier(mod2)) return false;
+        return true;
+    }
+
+    string toMnemonic() {
+        import std.traits: EnumMembers;
+        import std.ascii;
+
+        string s;
+
+        foreach(modifier; EnumMembers!Modifier) {
+            if(hasModifier(modifier) && modifier) {
+                s ~= modifier.toString() ~ "-";
+            }
+        }
+
+        if(key && key.isPrintable) {
+            s ~= (cast(char)key).toLower();
+        } else if(charValue) {
+            s ~= charValue;
+        }
+        return s;
+    }
 }
 
 class KeyMap {
@@ -184,20 +237,7 @@ class KeyMap {
     KeyCommand match(KeyEvent event) {
         import std.algorithm.searching: canFind;
         foreach(bind, fn; keybinds) {
-            if(event.action == KeyAction.RELEASE) continue;
-
-            if(bind.charValue) {
-                if(!event.charValue) continue;
-                if(bind.charValue != event.charValue) continue;
-            }
-
-            if(bind.key) {
-                if(!event.key) continue;
-                if(bind.key != event.key) continue;
-            }
-
-            if(bind.mod1 && !event.hasModifier(bind.mod1)) continue;
-            if(bind.mod2 && !event.hasModifier(bind.mod2)) continue;
+            if(bind.match(event)) return fn();
             return fn();
         }
         if(defaultAction) defaultAction(event);
@@ -292,16 +332,134 @@ KeyMapContainer registerKeyCommands(TextEditorState state) {
                 new EnterModeCommand(CursorMode.INSERT)
             ])
         );
+        map.add(KeyBind('G'),
+            new MoveCursorToEndOfDocumentCommand(),
+        );
     });
 
     return container;
 }
 
+abstract class Hydra {
+    KeyBind trigger;
+    string name;
+
+    abstract Hydra descend(KeyEvent key);
+
+}
+
+class HydraExec : Hydra {
+    void delegate() command;
+
+    this(KeyBind trigger, string name, void delegate() command) {
+        this.trigger = trigger;
+        this.name = name;
+        this.command = command;
+    }
+
+    override Hydra descend(KeyEvent key) {
+        return this;
+    }
+}
+
+class HydraSleeping : Hydra {
+    Hydra contents;
+
+    this(Hydra contents) {
+        this.trigger = contents.trigger;
+        this.name = contents.name;
+        this.contents = contents;
+    }
+
+    override Hydra descend(KeyEvent key) {
+        if(contents.trigger.match(key))
+            return contents;
+        return this;
+    }
+}
+
+class HydraHead : Hydra {
+    Hydra[] choices;
+
+    this(KeyBind trigger, string name, Hydra[] choices) {
+        this.name = name;
+        this.trigger = trigger;
+        this.choices = choices;
+    }
+
+    override Hydra descend(KeyEvent key) {
+        foreach(hydra; choices) {
+            if(hydra.trigger.match(key)) {
+                return hydra;
+            }
+        }
+        return this;
+    }
+}
+
+class CommandPalette {
+    Hydra traversal;
+    Hydra initial;
+    KeyEvent[] chord;
+
+    this(Hydra initial) {
+        this.initial = initial;
+        this.traversal = initial;
+        this.chord = new KeyEvent[0];
+    }
+
+    void onKeyUp(KeyEvent event) {
+        auto next = traversal.descend(event);
+
+        if(auto t = cast(HydraExec)next) {
+            t.command();
+            reset();
+        } else if(next != traversal) {
+            chord ~= event;
+            traversal = next;
+        }
+    }
+
+    void reset() {
+        chord = new KeyEvent[0];
+        traversal = initial;
+    }
+
+    void draw() {
+        import std.algorithm;
+        auto height = 150;
+        auto padding =  50;
+        auto corner = Vector2(padding , height);
+        if(auto t = cast(HydraHead)traversal) {
+            drawRectangle(
+                corner,
+                Vector2(Settings.windowWidth - padding * 2, height),
+                Colors.DARKBLUE
+            );
+
+            drawText(
+                chord.map!(c => c.toMnemonic).join(" "),
+                corner, 32, Colors.WHITE
+            );
+
+            foreach(n, choice; t.choices) {
+                drawText(
+                    format("[%s] %s", choice.trigger.toMnemonic, choice.name),
+                    corner + Vector2(10, Settings.lineHeight * (n + 1)),
+                    32, Colors.MAGENTA
+                );
+            }
+        }
+    }
+}
+
 void handleInput(TextEditorState state) {
     auto keymap = state.keyContainer.current(state.editor.cursor.mode);
     foreach(event; state.keyboard) {
-        if(auto match = keymap.match(event))
-            match.run(state);
+        state.commandPalette.onKeyUp(event);
+        /* if(auto match = keymap.match(event)) { */
+        /*     match.run(state); */
+        /* } */
     }
 }
 
@@ -311,7 +469,6 @@ Font loadFont() {
     auto fontPath = resourcePath("FiraMono-Regular.otf");
     return LoadFontEx(fontPath.toStringz, Settings.fontSize, null, 250);
 }
-
 
 void main(string[] args) {
     import raylib: SetExitKey;
@@ -323,13 +480,46 @@ void main(string[] args) {
 
     auto state = new TextEditorState();
     state.keyContainer = registerKeyCommands(state);
-    state.editor = JSEditor.fromFile(resourcePath("test.js"));
+    state.editor = JSEditor.fromFile(resourcePath("jquery.js"));
+    state.commandPalette = new CommandPalette(
+            new HydraSleeping(
+                new HydraHead(
+                    KeyBind(';'),
+                    "root",
+                    [
+                        new HydraExec(
+                            KeyBind('q'),
+                            "quit",
+                            { state.shouldQuit = true; }
+                        ),
+
+                        new HydraHead(
+                            KeyBind('f'),
+                            "files",
+                            [
+                                new HydraExec(
+                                    KeyBind('o'),
+                                    "open",
+                                    { writeln("should open a file"); }
+                                ),
+                                new HydraExec(
+                                    KeyBind('s'),
+                                    "save",
+                                    { writeln("should save a file"); }
+                                ),
+                            ]
+                        )
+                    ]
+                )
+            )
+    );
 
     while(!windowShouldClose() && !state.shouldQuit) {
         clearBackground(Colors.BLACK);
         beginDrawing();
         handleInput(state);
         draw(state);
+        state.commandPalette.draw();
         drawFPS();
         endDrawing();
     }

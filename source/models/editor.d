@@ -45,8 +45,8 @@ class Editor {
         viewport = Viewport(
             0,
             0,
-            Settings.windowWidth,
-            Settings.windowHeight,
+            Settings.windowWidth - 10,
+            Settings.windowHeight - 100,
             document
         );
         parser = Parser(language);
@@ -55,7 +55,7 @@ class Editor {
         highlighter = new Highlighter(tree, &highlightingQuery);
     }
 
-    Vector2 root = Vector2(20, 20);
+    Vector2 root = Vector2(0, 0);
 
     Color backgroundColor = Color(8, 8, 8, 255);
     Color frameColor = Color(0, 128, 200, 255);
@@ -162,7 +162,7 @@ class Editor {
             drawLineNums();
         });
 
-        /* drawFrame(rect); */
+        drawFrame(rect);
 
     }
 

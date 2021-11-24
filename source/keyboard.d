@@ -5,6 +5,7 @@ import std.array;
 import std.algorithm: canFind, filter, map;
 import std.stdio;
 import std.typecons;
+import std.ascii : isPrintable, toLower;
 import input;
 
 immutable KeyboardKey[] MODIFIER_KEYS = [
@@ -36,6 +37,18 @@ enum Modifier {
     SUPER = 0x0008,
     CAPS = 0x0010,
     NUM = 0x0020
+}
+
+string toString(Modifier mod)  {
+    final switch(mod) {
+        case Modifier.NULL: return "";
+        case Modifier.SHIFT: return "<Shift>";
+        case Modifier.CONTROL: return "<Ctrl>";
+        case Modifier.ALT: return "<Alt>";
+        case Modifier.SUPER: return "<Super>";
+        case Modifier.CAPS: return "<Caps>";
+        case Modifier.NUM: return "<Num>";
+    }
 }
 
 Modifier toModifier(KeyboardKey key) {
@@ -70,6 +83,33 @@ struct KeyEvent {
     bool hasModifier(Modifier mod) {
         return cast(bool)(modifiers & mod);
     }
+
+    string toMnemonic() {
+        import std.traits: EnumMembers;
+
+        string s;
+
+        foreach(modifier; EnumMembers!Modifier) {
+            if(hasModifier(modifier)) {
+                s ~= modifier.toString() ~ "-";
+            }
+        }
+
+        if(key && key.isPrintable) {
+            s ~= (cast(char)key).toLower();
+        } else if(charValue) {
+            s ~= charValue;
+        }
+        return s;
+    }
+
+    static KeyEvent fromString(string s) {
+        assert(s.length >= 1);
+        if(s.length == 1) {
+            return KeyEvent(KeyboardKey.KEY_NULL, s[0]);
+        }
+        assert(false, "not supported yet");
+    }
 }
 
 bool isAnyMod(int flags, Modifier[] ms...) {
@@ -82,7 +122,6 @@ extern(C) alias KeyCallback = void function(void*, int, int, int, int);
 extern(C) void glfwSetKeyCallback(void* window, KeyCallback callback);
 
 extern(C) void handleKey(void* window, int key, int scancode, int action_, int mods) {
-    import std.ascii;
     import std.conv;
 
     auto keyboardKey = cast(KeyboardKey)key;

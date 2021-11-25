@@ -238,7 +238,6 @@ class KeyMap {
         import std.algorithm.searching: canFind;
         foreach(bind, fn; keybinds) {
             if(bind.match(event)) return fn();
-            return fn();
         }
         if(defaultAction) defaultAction(event);
         return null;
@@ -456,10 +455,10 @@ class CommandPalette {
 void handleInput(TextEditorState state) {
     auto keymap = state.keyContainer.current(state.editor.cursor.mode);
     foreach(event; state.keyboard) {
-        state.commandPalette.onKeyUp(event);
-        /* if(auto match = keymap.match(event)) { */
-        /*     match.run(state); */
-        /* } */
+        /* state.commandPalette.onKeyUp(event); */
+        if(auto match = keymap.match(event)) {
+            match.run(state);
+        }
     }
 }
 

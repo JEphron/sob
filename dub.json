@@ -1,33 +1,34 @@
 {
-	"authors": [
-		"jephron"
-	],
-	"buildTypes": {
-		"debug": {
-			"buildOptions": [
-				"debugInfoC"
-			],
-			"systemDependencies": "sdl2"
-		}
-	},
-	"copyright": "Copyright © 2021, jephron",
-	"dependencies": {
-		"bindbc-sdl": "~>1.0.1",
-		"d_tree_sitter": {
-			"path": "/home/jephron/sources/d-tree-sitter",
-			"version": ">=0.0.0"
-		},
-		"intervaltree": "~>0.22.1",
-		"raylib-d": "~>3.1.0"
-	},
-	"description": "My angry text editor",
-	"lflags": [
-		"/home/jephron/dev/personal/sob/source/tree_sitter_grammars/json_parser.so",
-		"/home/jephron/dev/personal/sob/source/tree_sitter_grammars/js_parser.so"
-	],
-	"libs": [
-		"raylib"
-	],
-	"license": "proprietary",
-	"name": "sob"
+    "authors": [
+        "jephron"
+    ],
+    "buildTypes": {
+        "debug": {
+            "buildOptions": [
+                "debugInfoC"
+            ],
+            "systemDependencies": "sdl2"
+        }
+    },
+    "copyright": "Copyright © 2021, jephron",
+    "dependencies": {
+        "bindbc-sdl": "~>1.0.1",
+        "d_tree_sitter": {
+            "path": "/home/jephron/sources/d-tree-sitter",
+            "version": ">=0.0.0"
+        },
+        "intervaltree": "~>0.22.1",
+        "raylib-d": "~>3.1.0",
+        "fluent-asserts": "~>0.13.0"
+    },
+    "description": "My angry text editor",
+    "lflags": [
+        "/home/jephron/dev/personal/sob/source/tree_sitter_grammars/json_parser.so",
+        "/home/jephron/dev/personal/sob/source/tree_sitter_grammars/js_parser.so"
+    ],
+    "libs": [
+        "raylib"
+    ],
+    "license": "proprietary",
+    "name": "sob"
 }

@@ -27,6 +27,9 @@ struct RopeValue {
 
 alias RopeSplitResult = Tuple!(Rope, "left", Rope, "right");
 
+const uint MAX_CHUNK_SIZE = 16;
+const bool ENABLE_REDUCTION = true;
+
 interface Rope {
     // Return a new rope with the string s inserted beginning at position i.
     final Rope insert(size_t i, string s) {
@@ -55,6 +58,11 @@ interface Rope {
 
     // Return a new Rope in which the argument is appended to this Rope.
     final Rope concat(Rope r) {
+        import std.array;
+        if(ENABLE_REDUCTION && this.length + r.length < MAX_CHUNK_SIZE) {
+            writeln("merging ", this.toString, " with ", r.toString());
+            return new StringRope(this.toString() ~ r.toString());
+        }
         return new ConcatRope(this, r);
     }
 

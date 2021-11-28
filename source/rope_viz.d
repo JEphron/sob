@@ -48,6 +48,9 @@ void iterRopes(Rope rope, void delegate(Rope, Rope) dg) {
 class Runner {
     Rope root;
     Vector2[Rope] positions;
+    Vector2* draggingPos;
+    Vector2 dragStartPos;
+    bool runningSim = true;
 
     this() {
         root = Rope.build("hello world");
@@ -57,9 +60,9 @@ class Runner {
     void buildGraph() {
         positions.clear();
         iterRopes(root, (r, _r) {
-            writeln("r: ", r);
             positions[r] = Vector2(600 + random.uniform(-10, 10), 600 + random.uniform(-10, 10));
         });
+        writeln(positions.length);
     }
 
     void run() {
@@ -71,31 +74,66 @@ class Runner {
             root = root.insert(ix, letter);
             buildGraph();
         }
+        if(isKeyPressed(KeyboardKey.KEY_H)) {
+            runningSim = !runningSim;
+        }
 
-        foreach(rope1, ref position1; positions) {
-            foreach(rope2, position2; positions) {
-                if(rope1 == rope2) continue;
-                auto inwardForce = 0.1f * (position2 - position1);
-                position1.x += inwardForce.x;
-                position1.y += inwardForce.y;
-                auto outwardForce = 50 * (position1 - position2) / Vector2Length(position1 - position2);
-                position1.x += outwardForce.x;
-                position1.y += outwardForce.y;
-                auto centeringForce = 0.01f * (position1 - Vector2(Settings.windowWidth/2, Settings.windowHeight/2));
-                position1.x -= centeringForce.x;
-                position1.y -= centeringForce.y;
 
+        if(runningSim) {
+            foreach(rope1, ref position1; positions) {
+                foreach(rope2, position2; positions) {
+                    if(rope1 == rope2) continue;
+                    auto outwardForce = 5 * (position1 - position2) / Vector2Length(position1 - position2);
+                    position1.x += outwardForce.x;
+                    position1.y += outwardForce.y;
+                    auto centeringForce = 0.01f * (position1 - Vector2(Settings.windowWidth/2, Settings.windowHeight/2));
+                    position1.x -= centeringForce.x;
+                    position1.y -= centeringForce.y;
+                }
             }
+
+            iterRopes(root, (r1, r2) {
+                if(r2) {
+                    auto pos1 = positions[r1];
+                    auto pos2 = positions[r2];
+                    auto inwardForce = 0.1f * (pos2 - pos1);
+                    pos1.x += inwardForce.x;
+                    pos1.y += inwardForce.y;
+                    positions[r1] = pos1;
+                }
+            });
         }
 
         iterRopes(root, (r1, r2) {
-            if(r2) drawLine(positions[r1], positions[r2], Colors.WHITE);
+            if(r2) {
+                auto pos1 = positions[r2];
+                auto pos2 = positions[r1];
+                auto dir = (pos2 - pos1).normal;
+                drawArrow(pos1, pos2 - dir * 40, Colors.WHITE);
+            }
         });
 
-        foreach(rope, position; positions) {
+        foreach(rope, ref position; positions) {
             drawRopeNode(rope, position, rope == root);
+            if(mousePressed() && getMousePosition().insideCircle(position, 30)) {
+                draggingPos = &position;
+            }
+        }
+
+        if(draggingPos) {
+            if(mouseDown()) {
+                draggingPos.x = getMouseX();
+                draggingPos.y = getMouseY();
+            } else {
+                draggingPos = null;
+            }
         }
     }
+}
+
+bool insideCircle(Vector2 p, Vector2 center, float radius) {
+    import raymath: Vector2Distance;
+    return Vector2Distance(p, center) <= radius;
 }
 
 void drawRopeNode(Rope node, Vector2 position, bool isRoot) {

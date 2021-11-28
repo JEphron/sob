@@ -1,4 +1,5 @@
 public import raylib: Color, Colors, Vector2, Rectangle, Font, Vector3;
+import raymathext;
 import std.conv;
 import std.string : toStringz;
 
@@ -198,6 +199,19 @@ void drawLine(Vector2 start, Vector2 end, Color color) {
 void drawLine(Vector2 start, Vector2 end, float width, Color color) {
     import raylib: DrawLineEx;
     DrawLineEx(start, end, width, color);
+}
+
+void drawArrow(Vector2 start, Vector2 end, Color color) {
+    import raylib: DrawLineEx;
+    auto width = 1;
+    DrawLineEx(start, end, width, color);
+    auto arrowVec = (start - end).normal * 20;
+    DrawLineEx(end, end+arrowVec.rotate(deg2rad(-20)), width, color);
+    DrawLineEx(end, end+arrowVec.rotate(deg2rad(20)), width, color);
+}
+
+float deg2rad(float f) {
+    return f * 3.141592/180;
 }
 
 void drawRectangle(Vector2 start_corner, Vector2 dimensions, Color color) {

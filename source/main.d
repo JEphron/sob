@@ -16,8 +16,7 @@ import models.cursor;
 import settings;
 
 
-class TextEditorState {
-    Editor editor;
+class TextEditorState { Editor editor;
     Keyboard keyboard;
     KeyMapContainer keyContainer;
     Font font;
@@ -429,6 +428,7 @@ class CommandPalette {
         auto height = 150;
         auto padding =  50;
         auto corner = Vector2(padding , height);
+
         if(auto t = cast(HydraHead)traversal) {
             drawRectangle(
                 corner,
@@ -477,48 +477,52 @@ void main(string[] args) {
     setTargetFPS(60);
     SetExitKey(KeyboardKey.KEY_NULL); // don't close on escape-key press
 
-    auto state = new TextEditorState();
-    state.keyContainer = registerKeyCommands(state);
-    state.editor = JSEditor.fromFile(resourcePath("jquery.js"));
-    state.commandPalette = new CommandPalette(
-            new HydraSleeping(
-                new HydraHead(
-                    KeyBind(';'),
-                    "root",
-                    [
-                        new HydraExec(
-                            KeyBind('q'),
-                            "quit",
-                            { state.shouldQuit = true; }
-                        ),
+    /* auto state = new TextEditorState(); */
+    /* state.keyContainer = registerKeyCommands(state); */
+    /* state.editor = JSEditor.fromFile(resourcePath("jquery.js")); */
+    /* state.commandPalette = */
+    /*     new CommandPalette( */
+    /*         new HydraSleeping( */
+    /*             new HydraHead( */
+    /*                 KeyBind(';'), */
+    /*                 "root", */
+    /*                 [ */
+    /*                     new HydraExec( */
+    /*                         KeyBind('q'), */
+    /*                         "quit", */
+    /*                         { state.shouldQuit = true; } */
+    /*                     ), */
 
-                        new HydraHead(
-                            KeyBind('f'),
-                            "files",
-                            [
-                                new HydraExec(
-                                    KeyBind('o'),
-                                    "open",
-                                    { writeln("should open a file"); }
-                                ),
-                                new HydraExec(
-                                    KeyBind('s'),
-                                    "save",
-                                    { writeln("should save a file"); }
-                                ),
-                            ]
-                        )
-                    ]
-                )
-            )
-    );
+    /*                     new HydraHead( */
+    /*                         KeyBind('f'), */
+    /*                         "files", */
+    /*                         [ */
+    /*                             new HydraExec( */
+    /*                                 KeyBind('o'), */
+    /*                                 "open", */
+    /*                                 { writeln("should open a file"); } */
+    /*                             ), */
+    /*                             new HydraExec( */
+    /*                                 KeyBind('s'), */
+    /*                                 "save", */
+    /*                                 { writeln("should save a file"); } */
+    /*                             ), */
+    /*                         ] */
+    /*                     ) */
+    /*                 ] */
+    /*             ) */
+    /*         ) */
+    /* ); */
 
-    while(!windowShouldClose() && !state.shouldQuit) {
+    import rope_viz;
+    auto runner = new Runner();
+    while(!windowShouldClose()) {
         clearBackground(Colors.BLACK);
         beginDrawing();
-        handleInput(state);
-        draw(state);
-        state.commandPalette.draw();
+        /* handleInput(state); */
+        /* draw(state); */
+        runner.run();
+        /* state.commandPalette.draw(); */
         drawFPS();
         endDrawing();
     }

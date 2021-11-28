@@ -1,5 +1,6 @@
 module models.editor;
 
+import std.stdio;
 import std.conv;
 
 import d_tree_sitter : Language, Query, Parser, Tree, TreeCursor;
@@ -70,13 +71,31 @@ class Editor {
         return new JSEditor(document);
     }
 
+    void timeit(string s, scope void delegate() dg) {
+        import std.datetime.stopwatch;
+        auto sw = StopWatch(AutoStart.yes);
+        dg();
+        sw.stop();
+        writeln("timing [", s, "]: ",  sw.peek.total!"msecs", "ms");
+    }
+
     void reparseDocument() {
-        tree = parser.parse_to_tree(document.textContent);
-        highlighter = new Highlighter(tree, &highlightingQuery);
+        timeit("parse", {
+            tree = parser.parse_to_tree(document.textContent);
+        });
+
+        timeit("build highlighter", {
+            highlighter = new Highlighter(tree, &highlightingQuery);
+        });
     }
 
     void insertCharacter(dchar c) {
         document.insertCharacter(cursor.row, cursor.column, c);
+
+        /* tree.edit(InputEdit( */
+        /*     cursor.row, */
+        /*     cursor.column */
+        /* )); */
         cursor.moveHorizontally(1);
         reparseDocument();
     }

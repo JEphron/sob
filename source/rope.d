@@ -78,6 +78,9 @@ interface Rope {
         return result;
     }
 
+    static Rope build(string s) {
+        return new StringRope(s);
+    }
 }
 
 struct RopeRange {
@@ -237,7 +240,6 @@ class SubstringRope : Rope {
     }
 
     override string toString() {
-        // todo: bad
         return rope.toString()[minByte..maxByte];
     }
 }
@@ -248,7 +250,8 @@ unittest {
         Assert.equal(res.left.toString(), a, "expected left split of \"" ~ r.to!string ~ "\" to be \"" ~ a ~ "\" but was \"" ~ res.left.to!string ~ "\"");
         Assert.equal(res.right.toString(), b, "expected right split of \"" ~ r.to!string ~ "\" to be \"" ~ b ~ "\" but was \"" ~ res.right.to!string ~ "\"");
     }
-    auto s1 = new StringRope("hello world");
+
+    auto s1 = Rope.build("hello world");
     s1.toString().should.equal("hello world");
     s1.index(0).should.equal('h');
     s1.index(1).should.equal('e');
@@ -261,7 +264,7 @@ unittest {
     assert(s1.split(1).right.toString() == "ello world");
     assert(s1.split(1).right.toString() == "ello world");
 
-    auto concatted = s1.concat(new StringRope(", nice to meet you!"));
+    auto concatted = s1.concat(Rope.build(", nice to meet you!"));
     concatted.toString().should.equal("hello world, nice to meet you!");
     concatted.index(0).should.equal('h');
     concatted.index(13).should.equal('n');
@@ -274,5 +277,6 @@ unittest {
 
     Assert.equal(inserted.removeAt(0, 6).removeAt(5, 11).toString(), "hello, nice to meet you!");
     assertSplits(s1.removeAt(5, 6), 5, "hello", "world");
-    new StringRope("abc").range.retro.array.should.equal(['c','b','a']);
+    Rope.build("abc").range.retro.array.should.equal(['c','b','a']);
+
 }

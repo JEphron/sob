@@ -1,11 +1,21 @@
 module rope;
 
+import std.string;
 import std.algorithm;
 import std.stdio;
 import std.format;
 import std.conv;
 import std.typecons;
 import std.range;
+
+string indent(string s, int depth) {
+    auto w = appender!string;
+    w.reserve(s.length + depth);
+    foreach(i; 0..depth)
+        w ~= '|';
+    w ~= s;
+    return w[];
+}
 
 version(unittest) import fluent.asserts;
 
@@ -47,6 +57,8 @@ interface Rope {
     ubyte depth();
     size_t length();
     string toString();
+
+    string toDebugString(int depth=0);
 
     final size_t opDollar() {
         return length();
@@ -164,6 +176,10 @@ class StringRope : Rope {
     override string toString() {
         return str;
     }
+
+    string toDebugString(int depth=0) {
+        return indent(format("StringRope(\"%s\")", str), depth);
+    }
 }
 
 class ConcatRope : Rope {
@@ -207,6 +223,11 @@ class ConcatRope : Rope {
     override string toString() {
         return left.toString() ~ right.toString();
     }
+
+    string toDebugString(int depth=0) {
+        auto debugString = format("ConcatRope(\n%s,\n%s)", left.toDebugString(depth+1), right.toDebugString(depth+1));
+        return indent(debugString, depth);
+    }
 }
 
 class SubstringRope : Rope {
@@ -249,6 +270,11 @@ class SubstringRope : Rope {
 
     override string toString() {
         return rope.toString()[minByte..maxByte];
+    }
+
+    string toDebugString(int depth=0) {
+        auto debugString = format("SubstringRope([%s:%s],\n%s)", minByte, maxByte, rope.toDebugString(depth+1));
+        return indent(debugString, depth);
     }
 }
 

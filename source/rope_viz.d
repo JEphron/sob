@@ -116,6 +116,7 @@ class Runner {
         foreach(rope, ref position; positions) {
             drawRopeNode(rope, position, rope == root);
             if(mousePressed() && getMousePosition().insideCircle(position, 30)) {
+                writeln(rope.toDebugString());
                 draggingPos = &position;
             }
         }
